@@ -35,6 +35,7 @@ data SEltDrawer = SEltDrawer {
 
   , _sEltDrawer_renderFn :: SEltDrawerRenderFn
 
+  -- TODO this field is not beingh set correctly right now, it's always 1, should prob always be 2? Why do I even have this??
   , _sEltDrawer_maxCharWidth :: Int
 
   --, _sEltDrawer_renderToBoxFn :: LBox -> Vector PChar -- consider this version for better performance

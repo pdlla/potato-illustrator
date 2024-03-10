@@ -138,9 +138,6 @@ instance Default TextStyle where
 instance Show TextStyle where
   show TextStyle {..} = show _textStyle_alignment
 
-
--- TODO you need support for AL_Any and maybe AL_Center
--- TODO lowercase plz
 data AttachmentLocation = AL_Top | AL_Bot | AL_Left | AL_Right | AL_Any deriving (Eq, Generic, Show)
 
 instance FromJSON AttachmentLocation
@@ -150,6 +147,7 @@ instance NFData AttachmentLocation
 
 type AttachmentOffsetRatio = Ratio Int
 
+-- TODO this only allows for one attachment per AttachmentLocation, add a field to support more
 data Attachment = Attachment {
   _attachment_target :: REltId
   , _attachment_location :: AttachmentLocation

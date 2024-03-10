@@ -26,14 +26,28 @@ import Data.Ratio
 import Control.Exception (assert)
 
 
+
+attachmentRenderChar :: Attachment -> PChar
+attachmentRenderChar att = case _attachment_location att of
+  AL_Top -> '⇈'
+  AL_Bot -> '⇊'
+  AL_Left -> '⇇'
+  AL_Right -> '⇉'
+  AL_Any -> ' ' -- should never be rendered
+
+
+
 data CartSegment = CartSegment {
     _cartSegment_isVertical :: Bool
     , _cartSegment_common :: Int
     , _cartSegment_leftOrTop :: Int
     , _cartSegment_rightOrBot :: Int
   } deriving (Eq, Show)
+
 -- represents possible place to attach
-data AvailableAttachment = AvailableAttachment_CartSegment CartSegment AttachmentLocation deriving (Show, Eq)
+data AvailableAttachment = 
+  AvailableAttachment_CartSegment CartSegment AttachmentLocation 
+  deriving (Show, Eq)
 
 type BoxWithAttachmentLocation = (LBox, AttachmentLocation, AttachmentOffsetRatio)
 
@@ -82,6 +96,7 @@ availableAttachLocationFromLBox offset (LBox (V2 x y) (V2 w h), al)
 availableAttachLocationsFromLBox :: Bool -> LBox -> [AvailableAttachment]
 availableAttachLocationsFromLBox offsetBorder lbx = fmap (\a -> (availableAttachLocationFromLBox offsetBorder (lbx, a))) [AL_Top, AL_Bot, AL_Left, AL_Right]
 
+-- what was this for??? DELETE
 owlItem_availableAttachmentsAtDefaultLocation :: Bool -> Bool -> OwlItem -> [(AttachmentLocation, XY)]
 owlItem_availableAttachmentsAtDefaultLocation includeNoBorder offsetBorder o = case _owlItem_subItem o of
   OwlSubItemBox sbox | not includeNoBorder && not (sBoxType_hasBorder (_sBox_boxType sbox)) -> []
@@ -140,11 +155,3 @@ projectAttachment preval (V2 x y) rid lbox = r where
     else Just $ (attachment, pos1)
 
 
-
-attachmentRenderChar :: Attachment -> PChar
-attachmentRenderChar att = case _attachment_location att of
-  AL_Top -> '⇈'
-  AL_Bot -> '⇊'
-  AL_Left -> '⇇'
-  AL_Right -> '⇉'
-  AL_Any -> ' ' -- should never be rendered
