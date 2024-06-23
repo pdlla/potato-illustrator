@@ -48,6 +48,7 @@ import           Potato.Flow.OwlItem
 import           Potato.Flow.OwlState
 import           Potato.Flow.OwlWorkspace
 import           Potato.Flow.Render
+import           Potato.Flow.Methods.Shape
 import           Potato.Flow.Methods.SEltMethods
 import           Potato.Flow.Types
 import  Potato.Flow.Preview 
@@ -186,6 +187,7 @@ makeHandlerFromNewTool GoatState{..} = \case
   Tool_Text   -> SomePotatoHandler $ def { _boxHandler_creation = BoxCreationType_Text }
   Tool_TextArea -> SomePotatoHandler $ def { _boxHandler_creation = BoxCreationType_TextArea }
   Tool_Pan           -> SomePotatoHandler $ (def :: PanHandler)
+  Tool_Shape         -> SomePotatoHandler $ (def :: ShapeCreationHandler)
 
 
 -- TODO rename to makeHandlerFromCanvasSelection
@@ -489,6 +491,7 @@ endoGoatCmdKeyboard kbd' goatState = r_d0 where
                 'l' -> Just Tool_Line
                 't' -> Just Tool_Text
                 'n' -> Just Tool_TextArea
+                's' -> Just Tool_Shape
                 _   -> Nothing
               newHandler = maybe (_goatState_handler goatState_withKeyboard) (makeHandlerFromNewTool goatState_withKeyboard) mtool
               -- TODO should I call a goat_setHandler function instead?

@@ -19,6 +19,7 @@ import           Potato.Flow.Controller.Manipulator.Common
 import           Potato.Flow.Controller.Types
 import           Potato.Flow.Math
 import           Potato.Flow.Methods.SEltMethods
+import           Potato.Flow.Methods.Shape
 import           Potato.Flow.Serialization.Snake
 import           Potato.Flow.Types
 import           Potato.Flow.OwlItem
@@ -506,3 +507,119 @@ instance PotatoHandler BoxHandler where
     BoxCreationType_Text -> Just Tool_Text
     BoxCreationType_TextArea -> Just Tool_TextArea
     _ -> Nothing
+
+
+
+-- WIP STARTS HERE 
+
+-- TODO move this to a more appropriate place
+data ShapeType = ShapeType_Box | ShapeType_TextArea deriving (Show, Eq)
+
+-- TODO use ShapeImpl instead
+shapeType_to_owlItem :: PotatoDefaultParameters -> CanonicalLBox -> ShapeType -> OwlItem
+shapeType_to_owlItem pdp clbox st = case st of
+  ShapeType_Box -> OwlItem (OwlInfo "<box>") (OwlSubItemBox $ def {
+      _sBox_box = lBox_from_canonicalLBox clbox
+      , _sBox_boxType = SBoxType_Box
+      , _sBox_superStyle = _potatoDefaultParameters_superStyle pdp
+      , _sBox_title = def { _sBoxTitle_align = _potatoDefaultParameters_box_label_textAlign pdp }
+      , _sBox_text = def { _sBoxText_style = def { _textStyle_alignment = _potatoDefaultParameters_box_text_textAlign pdp } }
+    })
+  ShapeType_TextArea -> OwlItem (OwlInfo "<textarea>") (OwlSubItemTextArea $ def {
+      _sTextArea_box = lBox_from_canonicalLBox clbox
+      , _sTextArea_text = Map.empty
+      , _sTextArea_transparent = True
+    })
+
+-- new handler stuff
+data ShapeCreationHandler = ShapeCreationHandler {
+
+    _shapeCreationHandler_handle      :: BoxHandleType -- the current handle we are dragging
+
+    -- TODO this is wrong as makeDragOperation does not always return a Llama
+    -- rename this to mouseActive or something
+    , _shapeCreationHandler_undoFirst :: Bool
+    , _shapeCreationHandler_active    :: Bool
+
+    , _shapeCreationHandler_prevDeltaLBox :: Maybe DeltaLBox
+
+    , _shapeCreationHandler_shapeType :: ShapeType
+
+  } deriving (Show)
+
+instance Default ShapeCreationHandler where
+  def = ShapeCreationHandler {
+      _shapeCreationHandler_handle       = BH_BR
+      , _shapeCreationHandler_undoFirst  = False
+      , _shapeCreationHandler_active = False
+      , _shapeCreationHandler_prevDeltaLBox = Nothing
+      , _shapeCreationHandler_shapeType = ShapeType_Box
+    }
+
+instance PotatoHandler ShapeCreationHandler where
+  pHandlerName _ = handlerName_shape
+  pHandleMouse bh@ShapeCreationHandler {..} phi@PotatoHandlerInput {..} rmd@(RelMouseDrag MouseDrag {..}) = case _mouseDrag_state of
+
+    MouseDragState_Down ->  Just $ def {
+        _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler bh { _shapeCreationHandler_active = True }
+      }
+
+    MouseDragState_Dragging -> Just r where
+      dragDelta = _mouseDrag_to - _mouseDrag_from
+      newEltPos = lastPositionInSelection (_owlPFState_owlTree _potatoHandlerInput_pFState) _potatoHandlerInput_selection
+
+      -- TODO do I use this for box creation? Prob want to restrictDiag or something though
+      --shiftClick = elem KeyModifier_Shift _mouseDrag_modifiers
+      --boxRestrictedDelta = if shiftClick then restrict8 dragDelta else dragDelta
+
+      mdd = makeDragDeltaBox _shapeCreationHandler_handle rmd
+
+      mop = Just $ makeAddEltLlama _potatoHandlerInput_pFState newEltPos $ 
+        shapeType_to_owlItem _potatoHandlerInput_potatoDefaultParameters (canonicalLBox_from_lBox $ LBox _mouseDrag_from dragDelta) _shapeCreationHandler_shapeType
+
+      newbh = bh {
+          _shapeCreationHandler_undoFirst = True
+          , _shapeCreationHandler_prevDeltaLBox = Just mdd
+        }
+
+      -- NOTE, that if we did create a new box, it wil get auto selected and a new BoxHandler will be created for it
+
+      r = def {
+          _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler newbh
+          , _potatoHandlerOutput_action = case mop of
+            Nothing -> HOA_Nothing
+            Just op -> HOA_Preview $ Preview (previewOperation_fromUndoFirst _shapeCreationHandler_undoFirst) op
+        }
+
+    MouseDragState_Up -> r where
+      selt = superOwl_toSElt_hack <$> selectionToMaybeFirstSuperOwl _potatoHandlerInput_canvasSelection
+
+      -- TODO create move handler 
+      --nextHandler = SomePotatoHandler (def :: SelectHandler)
+
+      r = Just def {
+          _potatoHandlerOutput_action = HOA_Preview Preview_MaybeCommit
+          --, _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler nextHandler
+        }
+
+    MouseDragState_Cancelled -> if _shapeCreationHandler_undoFirst 
+      then Just def { 
+          -- you may or may not want to do this?
+          --_potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler (def :: BoxHandler)
+          _potatoHandlerOutput_action = HOA_Preview Preview_Cancel 
+        } 
+      else Just def
+
+
+  pRenderHandler ShapeCreationHandler {..} PotatoHandlerInput {..} = r where
+    handlePoints = fmap _mouseManipulator_box . filter (\mm -> _mouseManipulator_type mm == MouseManipulatorType_Corner) $ toMouseManipulators _potatoHandlerInput_pFState _potatoHandlerInput_canvasSelection
+
+    r = if not _shapeCreationHandler_active
+      -- don't render anything if we are about to create a box
+      then emptyHandlerRenderOutput
+      --else HandlerRenderOutput (mcons mBoxLabelHandler $ fmap defaultRenderHandle handlePoints)
+      else HandlerRenderOutput (fmap defaultRenderHandle handlePoints)
+      
+  pIsHandlerActive bh = if _shapeCreationHandler_active bh then HAS_Active_Mouse else HAS_Inactive
+
+  pHandlerTool ShapeCreationHandler {..} = Just Tool_Shape

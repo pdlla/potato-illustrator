@@ -814,6 +814,29 @@ DONE-rendering
   DONE-create 2 fully attached lines, select them both, ensure not possible to move
 
 
+:: 2024, some random nix pkg stuff D:
+
+mypkgs = nixpkgs.pkgs.haskell.packages.${compiler}.override {
+    overrides = self: super: {
+        reflex-test-host = nixpkgs.pkgs.haskellPackages.callHackageDirect {
+            pkg = "reflex-test-host";
+            ver = "0.1.2.3";
+            sha256 = "9ee3ad9ac4fc58c6dcabcd9fbc6d109a51d8e86ba2682cee8367bc6b452f09ea";
+          } {};
+        reflex-vty = nixpkgs.pkgs.haskellPackages.callHackageDirect {
+            pkg = "reflex-vty";
+            ver = "0.5.1.0";
+            sha256 = "ff25d77e771a08214f7e4e699fc31e16a6406bce51d3f35515430b882caafebd";
+          } {};
+        tinytools = nixpkgs.pkgs.haskellPackages.callHackageDirect {
+            pkg = "tinytools";
+            ver = "0.1.0.7";
+            sha256 = "ff25d77e771a08214f7e4e699fc31e16a6406bce51d3f35515430b882caafebd";
+          } {};
+      };
+    };
+
+
 :: MULTI POINT LINE AND LABEL SPEC
 DONE-midpoints
   DONE-rendered in segments

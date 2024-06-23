@@ -38,7 +38,7 @@ data UnicodeWidthFn = UnicodeWidthFn {
   }
 
 
-data Tool = Tool_Select | Tool_Pan | Tool_Box | Tool_Line | Tool_Text | Tool_TextArea deriving (Eq, Show, Enum)
+data Tool = Tool_Select | Tool_Pan | Tool_Box | Tool_Line | Tool_Text | Tool_TextArea | Tool_Shape deriving (Eq, Show, Enum)
 
 tool_isCreate :: Tool -> Bool
 tool_isCreate = \case

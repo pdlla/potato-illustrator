@@ -114,7 +114,7 @@ library
       TypeFamilyDependencies
       TypeOperators
       NoImplicitPrelude
-  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -fno-ignore-asserts -v2
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -fno-ignore-asserts
   build-depends:
     base >=4.7 && <5
     , relude >= 1.2.1 && < 1.3
