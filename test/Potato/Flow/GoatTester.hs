@@ -196,6 +196,11 @@ getHandlerRenderOutput = GoatTesterT $ do
 setTool :: (Monad m) => Tool -> GoatTesterT m ()
 setTool tool = runEndo (endoGoatCmdSetTool tool)
 
+getTool :: (Monad m) => GoatTesterT m Tool
+getTool = do
+  gs <- getGoatState
+  return $ goatState_selectedTool gs
+
 setFocusArea :: (Monad m) => GoatFocusedArea -> GoatTesterT m ()
 setFocusArea fa = runEndo $ endoGoatCmdSetFocusedArea fa
 

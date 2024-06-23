@@ -1,3 +1,5 @@
+-- DEPRECATED I THINK, MOVE TO DEPRECATED FOLDER PLS 
+
 {-# LANGUAGE RecordWildCards #-}
 
 module Potato.Flow.Common where
