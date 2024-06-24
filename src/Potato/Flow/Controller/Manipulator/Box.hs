@@ -11,6 +11,7 @@ module Potato.Flow.Controller.Manipulator.Box where
 
 import           Relude
 
+import Potato.Flow.Attachments
 import           Potato.Flow.Controller.Handler
 import           Potato.Flow.Controller.Input
 import           Potato.Flow.Controller.Manipulator.BoxText
@@ -512,24 +513,37 @@ instance PotatoHandler BoxHandler where
 
 -- WIP STARTS HERE 
 
--- TODO move this to a more appropriate place
-data ShapeType = ShapeType_Box | ShapeType_TextArea deriving (Show, Eq)
 
--- TODO use ShapeImpl instead
-shapeType_to_owlItem :: PotatoDefaultParameters -> CanonicalLBox -> ShapeType -> OwlItem
-shapeType_to_owlItem pdp clbox st = case st of
-  ShapeType_Box -> OwlItem (OwlInfo "<box>") (OwlSubItemBox $ def {
-      _sBox_box = lBox_from_canonicalLBox clbox
-      , _sBox_boxType = SBoxType_Box
-      , _sBox_superStyle = _potatoDefaultParameters_superStyle pdp
-      , _sBox_title = def { _sBoxTitle_align = _potatoDefaultParameters_box_label_textAlign pdp }
-      , _sBox_text = def { _sBoxText_style = def { _textStyle_alignment = _potatoDefaultParameters_box_text_textAlign pdp } }
-    })
-  ShapeType_TextArea -> OwlItem (OwlInfo "<textarea>") (OwlSubItemTextArea $ def {
-      _sTextArea_box = lBox_from_canonicalLBox clbox
-      , _sTextArea_text = Map.empty
-      , _sTextArea_transparent = True
-    })
+
+-- TODO move this to a more appropriate place
+data ShapeType = ShapeType_Box deriving (Show, Eq)
+
+boxShapeImpl :: ShapeImpl SBox
+boxShapeImpl = ShapeImpl {
+    _shapeImpl_name = "SBox"
+    , _shapeImpl_create = \pdp lbox -> OwlItem (OwlInfo "<box>") $ OwlSubItemBox def {
+        _sBox_box = lbox
+        , _sBox_boxType = SBoxType_Box
+        , _sBox_superStyle = _potatoDefaultParameters_superStyle pdp
+        , _sBox_title = def { _sBoxTitle_align = _potatoDefaultParameters_box_label_textAlign pdp }
+        , _sBox_text = def { _sBoxText_style = def { _textStyle_alignment = _potatoDefaultParameters_box_text_textAlign pdp } }
+      }
+    , _shapeImpl_updateFromLBox = \sbox lbox -> sbox { _sBox_box = lbox }
+    , _shapeImpl_toLBox = \sbox -> _sBox_box sbox
+    , _shapeImpl_textArea = \sbox -> if sBoxType_isText (_sBox_boxType sbox) 
+      then Just (getSBoxTextBox sbox)
+      else Nothing 
+    , _shapeImpl_textLabel = \sbox  -> if sBoxType_hasBorder (_sBox_boxType sbox) 
+      then [canonicalLBox_from_lBox (lBox_to_boxLabelBox (_sBox_box sbox))]
+      else []
+    , _shapeImpl_startingAttachments = \sbox -> if sBoxType_hasBorder (_sBox_boxType sbox)
+      then []
+      else availableAttachLocationsFromLBox True (_sBox_box sbox)
+    , _shapeImpl_draw = \sbox -> sBox_drawer sbox
+  }
+
+shapeType_to_owlItem :: PotatoDefaultParameters -> CanonicalLBox -> ShapeImpl o -> OwlItem
+shapeType_to_owlItem pdp clbox impl = _shapeImpl_create impl pdp (lBox_from_canonicalLBox clbox)
 
 -- new handler stuff
 data ShapeCreationHandler = ShapeCreationHandler {
@@ -574,8 +588,11 @@ instance PotatoHandler ShapeCreationHandler where
 
       mdd = makeDragDeltaBox _shapeCreationHandler_handle rmd
 
+      shapeImpl = case _shapeCreationHandler_shapeType of
+        ShapeType_Box -> boxShapeImpl
+
       mop = Just $ makeAddEltLlama _potatoHandlerInput_pFState newEltPos $ 
-        shapeType_to_owlItem _potatoHandlerInput_potatoDefaultParameters (canonicalLBox_from_lBox $ LBox _mouseDrag_from dragDelta) _shapeCreationHandler_shapeType
+        shapeType_to_owlItem _potatoHandlerInput_potatoDefaultParameters (canonicalLBox_from_lBox $ LBox _mouseDrag_from dragDelta) shapeImpl
 
       newbh = bh {
           _shapeCreationHandler_undoFirst = True

@@ -10,6 +10,8 @@ module Potato.Flow.Controller.Manipulator.BoxText (
   , BoxLabelHandler(..)
   , makeBoxLabelHandler
   , lBox_to_boxLabelBox
+  , shrink_lBox_no_negative
+  , getSBoxTextBox
 
   -- exposed for testing
   , makeTextInputState

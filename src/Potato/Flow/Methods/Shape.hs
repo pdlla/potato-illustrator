@@ -8,12 +8,15 @@ import           Potato.Flow.Math
 import           Potato.Flow.Methods.Types
 import Potato.Flow.Attachments
 import           Potato.Flow.Serialization.Snake
-
+import          Potato.Flow.Llama
+import Potato.Flow.Controller.Types
+import Potato.Flow.OwlItem
 
 
 
 data ShapeImpl o = ShapeImpl {
   _shapeImpl_name :: Text
+  , _shapeImpl_create :: PotatoDefaultParameters -> LBox -> OwlItem
   , _shapeImpl_updateFromLBox :: o -> LBox -> o
   , _shapeImpl_toLBox :: o -> LBox
   , _shapeImpl_textArea :: o -> Maybe CanonicalLBox
@@ -24,24 +27,3 @@ data ShapeImpl o = ShapeImpl {
 
 }
 
-
-{-
-
-boxShapeImpl :: ShapeImpl SBox
-boxShapeImpl = ShapeImpl {
-    _shapeImpl_name = "SBox"
-
-    , _shapeImpl_updateFromLBox = \sbox lbox -> undefined
-    , _shapeImpl_toLBox = \sbox -> _sBox_box sbox
-    , _shapeImpl_textArea = \sbox -> if sBoxType_isText (_sBox_boxType sbox) 
-      then Just (getSBoxTextBox sbox)
-      else Nothing 
-    , _shapeImpl_textLabel = \sbox  -> if sBoxType_hasBorder (_sBox_boxType sbox) 
-      then [canonicalLBox_from_lBox (lBox_to_boxLabelBox (_sBox_box sbox))]
-      else []
-    , _shapeImpl_startingAttachments = \sbox -> if sBoxType_hasBorder (_sBox_boxType sbox)
-      then []
-      else availableAttachLocationsFromLBox True (_sBox_box sbox)
-    , _shapeImpl_draw = \sbox -> sBox_drawer sbox
-  }
--}
