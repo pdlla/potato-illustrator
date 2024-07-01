@@ -516,7 +516,7 @@ instance PotatoHandler BoxHandler where
 
 
 -- TODO move this to a more appropriate place
-data ShapeType = ShapeType_Box deriving (Show, Eq)
+data ShapeType = ShapeType_Unknown | ShapeType_Box deriving (Show, Eq)
 
 boxShapeDef :: ShapeDef SBox
 boxShapeDef = ShapeDef {
@@ -572,8 +572,9 @@ instance Default ShapeCreationHandler where
       , _shapeCreationHandler_undoFirst  = False
       , _shapeCreationHandler_active = False
       , _shapeCreationHandler_prevDeltaLBox = Nothing
-      , _shapeCreationHandler_shapeType = ShapeType_Box
+      , _shapeCreationHandler_shapeType = ShapeType_Unknown
     }
+
 
 instance PotatoHandler ShapeCreationHandler where
   pHandlerName _ = handlerName_shape
@@ -595,6 +596,7 @@ instance PotatoHandler ShapeCreationHandler where
 
       shapeDef = case _shapeCreationHandler_shapeType of
         ShapeType_Box -> boxShapeDef
+        ShapeType_Unknown -> error "attempting to use ShapeCreationHandler with ShapeType_Unknown"
 
       mop = Just $ makeAddEltLlama _potatoHandlerInput_pFState newEltPos $ 
         shapeType_to_owlItem _potatoHandlerInput_potatoDefaultParameters (canonicalLBox_from_lBox $ LBox _mouseDrag_from dragDelta) shapeDef
@@ -614,14 +616,13 @@ instance PotatoHandler ShapeCreationHandler where
         }
 
     MouseDragState_Up -> r where
-      selt = superOwl_toSElt_hack <$> selectionToMaybeFirstSuperOwl _potatoHandlerInput_canvasSelection
-
-      -- TODO create move handler 
-      --nextHandler = SomePotatoHandler (def :: SelectHandler)
-
+      shapeModifyHandler = shapeModifyHandlerFromSelection _potatoHandlerInput_canvasSelection
+      nextHandler = case _shapeModifyHandler_shapeType shapeModifyHandler of
+        ShapeType_Unknown -> Nothing
+        _ -> Just $ SomePotatoHandler shapeModifyHandler
       r = Just def {
           _potatoHandlerOutput_action = HOA_Preview Preview_MaybeCommit
-          --, _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler nextHandler
+          , _potatoHandlerOutput_nextHandler = nextHandler
         }
 
     MouseDragState_Cancelled -> if _shapeCreationHandler_undoFirst 
@@ -647,8 +648,6 @@ instance PotatoHandler ShapeCreationHandler where
   pHandlerTool ShapeCreationHandler {..} = Just Tool_Shape
 
 
-{-
-
 data ShapeModifyHandler = ShapeModifyHandler {
 
     _shapeModifyHandler_handle      :: BoxHandleType -- the current handle we are dragging
@@ -657,11 +656,13 @@ data ShapeModifyHandler = ShapeModifyHandler {
     -- rename this to mouseActive or something
     , _shapeModifyHandler_undoFirst :: Bool
     , _shapeModifyHandler_active    :: Bool
-    , _shapeModifyHandler_downOnLabel :: Bool
+    , _shapeModifyHandler_downOnLabel :: Maybe Int
+    , _shapeModifyHandler_isDragSelect :: Bool
 
     , _shapeModifyHandler_prevDeltaLBox :: Maybe DeltaLBox
 
     , _shapeModifyHandler_shapeType :: ShapeType
+    , _shapeModifyHandler_impl :: ShapeImpl
 
   } deriving (Show)
 
@@ -670,153 +671,127 @@ instance Default ShapeModifyHandler where
       _shapeModifyHandler_handle       = BH_BR
       , _shapeModifyHandler_undoFirst  = False
       , _shapeModifyHandler_active = False
+      , _shapeModifyHandler_downOnLabel = Nothing
+      , _shapeModifyHandler_isDragSelect = False
       , _shapeModifyHandler_prevDeltaLBox = Nothing
       , _shapeModifyHandler_shapeType = ShapeType_Box
+      , _shapeModifyHandler_impl = emptyShapeImpl
     }
 
+shapeModifyHandlerFromSelection :: CanvasSelection -> ShapeModifyHandler
+shapeModifyHandlerFromSelection cs = r where 
+  (shapeType, impl) = case superOwl_toSElt_hack <$> selectionToMaybeFirstSuperOwl cs of
+    Just (SEltBox sbox) -> (ShapeType_Box, _shapeDef_impl boxShapeDef sbox)
+    _ -> (ShapeType_Unknown, emptyShapeImpl)
+  r = def {
+    _shapeModifyHandler_shapeType = shapeType
+  }
+
+
+findWhichTextLabelMouseIsOver :: ShapeModifyHandler -> RelMouseDrag -> Maybe Int
+findWhichTextLabelMouseIsOver ShapeModifyHandler {..} (RelMouseDrag MouseDrag {..}) = 
+  L.findIndex (\lbox -> does_lBox_contains_XY (lBox_from_canonicalLBox lbox) _mouseDrag_from) $ _shapeImpl_textLabel _shapeModifyHandler_impl
 
 
 instance PotatoHandler ShapeModifyHandler where
   pHandlerName _ = handlerName_shapeModify
   pHandleMouse bh@ShapeModifyHandler {..} phi@PotatoHandlerInput {..} rmd@(RelMouseDrag MouseDrag {..}) = let
-      shapeDef = case _shapeCreationHandler_shapeType of
-        ShapeType_Box -> boxShapeDef
-
-      -- TODO need a way to combine shapeImpl and selt to avoid type issues
-      selt = superOwl_toSElt_hack <$> selectionToMaybeFirstSuperOwl _potatoHandlerInput_canvasSelection
+      --shapeDef = case _shapeCreationHandler_shapeType of
+      --  ShapeType_Box -> boxShapeDef
+      --  ShapeType_Unknown -> error "attempting to use ShapeModifyHandler with ShapeType_Unknown"
+      --selt = superOwl_toSElt_hack $ selectionToFirstSuperOwl _potatoHandlerInput_canvasSelection
     in case _mouseDrag_state of
 
-    -- if shift is held down, ignore inputs, this allows us to shift + click to deselect
-    -- TODO consider moving this into GoatWidget since it's needed by many manipulators
-    MouseDragState_Down | elem KeyModifier_Shift _mouseDrag_modifiers -> Nothing
-    -- in DragSelect case we already have a selection
-    MouseDragState_Down | _boxHandler_creation == BoxCreationType_DragSelect  -> assert (not . isParliament_null $ _potatoHandlerInput_selection) r where
+      -- if shift is held down, ignore inputs, this allows us to shift + click to deselect
+      -- TODO consider moving this into GoatWidget since it's needed by many manipulators
+      MouseDragState_Down | elem KeyModifier_Shift _mouseDrag_modifiers -> Nothing
+      -- in DragSelect case we already have a selection
+      MouseDragState_Down | _shapeModifyHandler_isDragSelect  -> assert (not . isParliament_null $ _potatoHandlerInput_selection) r where
+          newbh = bh {
+              -- drag select case is always BH_A
+              _shapeModifyHandler_handle = BH_A
+              , _shapeModifyHandler_active = True
+            }
+          r = Just def { _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler newbh }
+
+      MouseDragState_Down -> case findFirstMouseManipulator _potatoHandlerInput_pFState rmd _potatoHandlerInput_canvasSelection of
+        Nothing -> Nothing
+
+        -- clicked on a manipulator, begin dragging
+        Just mi -> r where
+          newbh = bh {
+              _shapeModifyHandler_handle = bht
+              , _shapeModifyHandler_active = True
+              , _shapeModifyHandler_downOnLabel = findWhichTextLabelMouseIsOver bh rmd
+            }
+          bht = toEnum mi
+          -- special case behavior for BH_A require actually clicking on something on selection
+          clickOnSelection = any (doesSEltIntersectPoint _mouseDrag_to . superOwl_toSElt_hack) $ unCanvasSelection _potatoHandlerInput_canvasSelection
+          r = if bht /= BH_A || clickOnSelection
+            then Just def { _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler newbh }
+            else Nothing
+
+      MouseDragState_Dragging -> Just r where
+        dragDelta = _mouseDrag_to - _mouseDrag_from
+        newEltPos = lastPositionInSelection (_owlPFState_owlTree _potatoHandlerInput_pFState) _potatoHandlerInput_selection
+
+        -- TODO do I use this for box creation? Prob want to restrictDiag or something though
+        --shiftClick = elem KeyModifier_Shift _mouseDrag_modifiers
+        --boxRestrictedDelta = if shiftClick then restrict8 dragDelta else dragDelta
+
+        mdd = makeDragDeltaBox _shapeModifyHandler_handle rmd
+
+        -- NOTE this operation works with many shapes, not just a single shape, do we want to make the many shape one a separate handler?
+        -- TODO should we use _shapeImpl_updateFromLBox instead?
+        mop = makeDragOperationNew phi (minusDeltaLBox mdd (fromMaybe (DeltaLBox 0 0) _shapeModifyHandler_prevDeltaLBox))
+
         newbh = bh {
-            -- drag select case is always BH_A
-            _shapeModifyHandler_handle = BH_A
-            , _shapeModifyHandler_active = True
+            _shapeModifyHandler_undoFirst = True
+            -- if we drag, we are no longer in label case
+            , _shapeModifyHandler_downOnLabel = Nothing
+            , _shapeModifyHandler_prevDeltaLBox = Just mdd
           }
-        r = Just def { _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler newbh }
 
-
-    -- CONTINUE HERE
-    MouseDragState_Down -> case findFirstMouseManipulator _potatoHandlerInput_pFState rmd _potatoHandlerInput_canvasSelection of
-      Nothing -> Nothing
-
-      -- clicked on a manipulator, begin dragging
-      Just mi -> r where
-        newbh = bh {
-            _shapeModifyHandler_handle = bht
-            , _shapeModifyHandler_active = True
-
-            -- TODO fix this, types won't line up...
-            , _shapeModifyHandler_downOnLabel = does_lBox_contains_XY (lBox_from_canonicalLBox $ _shapeImpl_textLabel shapeImpl selt) _mouseDrag_from
+        r = def {
+            _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler newbh
+            , _potatoHandlerOutput_action = case mop of
+              Nothing -> HOA_Nothing
+              Just op -> HOA_Preview $ Preview (previewOperation_fromUndoFirst _shapeModifyHandler_undoFirst) op
           }
-        bht = toEnum mi
-        -- special case behavior for BH_A require actually clicking on something on selection
-        clickOnSelection = any (doesSEltIntersectPoint _mouseDrag_to . superOwl_toSElt_hack) $ unCanvasSelection _potatoHandlerInput_canvasSelection
-        r = if bht /= BH_A || clickOnSelection
-          then Just def { _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler newbh }
-          else Nothing
+
+      MouseDragState_Up | isJust _shapeModifyHandler_downOnLabel -> if findWhichTextLabelMouseIsOver bh rmd == _shapeModifyHandler_downOnLabel
+        -- TODO make BoxHandler generic
+        -- clicked on the text label area
+        then pHandleMouse (makeBoxLabelHandler (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
+        else Nothing
+
+      MouseDragState_Up -> r where
+
+        -- TODO do selectMagic here so we can enter text edit modes from multi-selections (you will also need to modify the selection)
+        nselected = Seq.length (unCanvasSelection _potatoHandlerInput_canvasSelection)
+        selt = superOwl_toSElt_hack <$> selectionToMaybeFirstSuperOwl _potatoHandlerInput_canvasSelection
+        isBox = nselected == 1 && case selt of
+          Just (SEltBox _) -> True
+          _                                    -> False
+        isText = nselected == 1 && case selt of
+          Just (SEltBox SBox{..}) -> sBoxType_isText _sBox_boxType
+          _                                    -> False
+        isTextArea = nselected == 1 && case selt of
+          Just (SEltTextArea _) -> True
+          _ -> False
 
 
-    MouseDragState_Dragging -> Just r where
-      dragDelta = _mouseDrag_to - _mouseDrag_from
-      newEltPos = lastPositionInSelection (_owlPFState_owlTree _potatoHandlerInput_pFState) _potatoHandlerInput_selection
+        -- only enter sub handler if we weren't drag selecting (this includes selecting it from an unselect state without dragging)
+        wasNotDragSelecting = not _shapeModifyHandler_isDragSelect
+        -- only enter subHandler we did not drag (hack, we do this by testing form _boxHandler_undoFirst)
+        wasNotActuallyDragging = not _shapeModifyHandler_undoFirst
+        r = if (isText || isBox)
+            && wasNotActuallyDragging
+            && wasNotDragSelecting
 
-      -- TODO do I use this for box creation? Prob want to restrictDiag or something though
-      --shiftClick = elem KeyModifier_Shift _mouseDrag_modifiers
-      --boxRestrictedDelta = if shiftClick then restrict8 dragDelta else dragDelta
-
-      boxToAdd = def {
-          _sBox_box     = canonicalLBox_from_lBox_ $ LBox _mouseDrag_from dragDelta
-          -- consider using _potatoDefaultParameters_boxType instead
-          , _sBox_boxType  = if _boxHandler_creation == BoxCreationType_Text
-            then SBoxType_BoxText -- TODO pull from params
-            else SBoxType_Box
-          , _sBox_superStyle = _potatoDefaultParameters_superStyle _potatoHandlerInput_potatoDefaultParameters
-          , _sBox_title = def { _sBoxTitle_align = _potatoDefaultParameters_box_label_textAlign _potatoHandlerInput_potatoDefaultParameters }
-          , _sBox_text = def { _sBoxText_style = def { _textStyle_alignment = _potatoDefaultParameters_box_text_textAlign _potatoHandlerInput_potatoDefaultParameters } }
-        }
-
-      textAreaToAdd = def {
-          _sTextArea_box   =  canonicalLBox_from_lBox_ $ LBox _mouseDrag_from dragDelta
-          , _sTextArea_text        = Map.empty
-          , _sTextArea_transparent = True
-        }
-
-      nameToAdd = case _boxHandler_creation of
-        BoxCreationType_Box -> "<box>"
-        BoxCreationType_Text -> "<text>"
-        BoxCreationType_TextArea -> "<textarea>"
-        _ -> error "invalid BoxCreationType"
-
-      mdd = makeDragDeltaBox _boxHandler_handle rmd
-
-      mop = case _boxHandler_creation of
-        x | x == BoxCreationType_Box || x == BoxCreationType_Text -> Just $ makeAddEltLlama _potatoHandlerInput_pFState newEltPos (OwlItem (OwlInfo nameToAdd) (OwlSubItemBox boxToAdd))
-        BoxCreationType_TextArea -> Just $ makeAddEltLlama _potatoHandlerInput_pFState newEltPos (OwlItem (OwlInfo nameToAdd) (OwlSubItemTextArea textAreaToAdd))
-        _ -> makeDragOperationNew phi (minusDeltaLBox mdd (fromMaybe (DeltaLBox 0 0) _boxHandler_prevDeltaLBox))
-
-      newbh = bh {
-          _boxHandler_undoFirst = True
-          -- if we drag, we are no longer in label case
-          , _boxHandler_downOnLabel = False
-          , _boxHandler_prevDeltaLBox = Just mdd
-        }
-
-      -- NOTE, that if we did create a new box, it wil get auto selected and a new BoxHandler will be created for it
-
-      r = def {
-          _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler newbh
-          , _potatoHandlerOutput_action = case mop of
-            Nothing -> HOA_Nothing
-            Just op -> HOA_Preview $ Preview (previewOperation_fromUndoFirst _boxHandler_undoFirst) op
-        }
-
-    MouseDragState_Up | _boxHandler_downOnLabel -> if isMouseOnSelectionSBoxBorder _potatoHandlerInput_canvasSelection rmd
-      -- clicked on the box label area
-      -- pass on mouse as MouseDragState_Down is a hack but whatever it works
-      -- TODO fix this hack, just have mouse up handle selection in this special case
-      then pHandleMouse (makeBoxLabelHandler (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
-      else Nothing
-    MouseDragState_Up -> r where
-
-      -- TODO do selectMagic here so we can enter text edit modes from multi-selections (you will also need to modify the selection)
-      nselected = Seq.length (unCanvasSelection _potatoHandlerInput_canvasSelection)
-      selt = superOwl_toSElt_hack <$> selectionToMaybeFirstSuperOwl _potatoHandlerInput_canvasSelection
-      isBox = nselected == 1 && case selt of
-        Just (SEltBox _) -> True
-        _                                    -> False
-      isText = nselected == 1 && case selt of
-        Just (SEltBox SBox{..}) -> sBoxType_isText _sBox_boxType
-        _                                    -> False
-      isTextArea = nselected == 1 && case selt of
-        Just (SEltTextArea _) -> True
-        _ -> False
-
-
-      -- only enter sub handler if we weren't drag selecting (this includes selecting it from an unselect state without dragging)
-      wasNotDragSelecting = not (_boxHandler_creation == BoxCreationType_DragSelect)
-      -- only enter subHandler we did not drag (hack, we do this by testing form _boxHandler_undoFirst)
-      wasNotActuallyDragging = not _boxHandler_undoFirst
-      -- always go straight to handler after creating a new SElt
-      isCreation = boxCreationType_isCreation _boxHandler_creation
-      r = if (isText || (isBox && not isCreation))
-          && (wasNotActuallyDragging || isCreation)
-          && wasNotDragSelecting
-        -- create box handler and pass on the input (if it was not a text box it will be converted to one by the BoxTextHandler)
-        then pHandleMouse (makeBoxTextHandler isCreation (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
-
-        else if isTextArea
-          && (wasNotActuallyDragging || isCreation)
-          && wasNotDragSelecting
-          then let 
-            tah = makeTextAreaHandler (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd isCreation in
-              if isCreation
-                then textAreaHandler_pHandleMouse_onCreation tah phi rmd
-                else pHandleMouse tah phi rmd
-
+          -- TODO make BoxTextHandler generic to shapes
+          -- create box handler and pass on the input (if it was not a text box it will be converted to one by the BoxTextHandler)
+          then pHandleMouse (makeBoxTextHandler False (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
           -- This clears the handler and causes selection to regenerate a new handler.
           -- Why do we do it this way instead of returning a handler? Not sure, doesn't matter.
           else Just def {
@@ -825,17 +800,13 @@ instance PotatoHandler ShapeModifyHandler where
               --_potatoHandlerOutput_action = if _boxHandler_undoFirst then HOA_Preview Preview_Commit else HOA_Nothing
             }
 
-        -- TODO if this was a text box creation case, consider entering text edit mode
-
-      -- TODO consider handling special case, handle when you click and release create a box in one spot, create a box that has size 1 (rather than 0 if we did it during MouseDragState_Down normal way)
-
-    MouseDragState_Cancelled -> if _boxHandler_undoFirst 
-      then Just def { 
-          -- you may or may not want to do this?
-          --_potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler (def :: BoxHandler)
-          _potatoHandlerOutput_action = HOA_Preview Preview_Cancel 
-        } 
-      else Just def
+      MouseDragState_Cancelled -> if _shapeModifyHandler_undoFirst 
+        then Just def { 
+            -- you may or may not want to do this?
+            --_potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler (def :: BoxHandler)
+            _potatoHandlerOutput_action = HOA_Preview Preview_Cancel 
+          } 
+        else Just def
 
 
   pHandleKeyboard bh phi@PotatoHandlerInput {..} (KeyboardData key _) = r where
@@ -848,7 +819,7 @@ instance PotatoHandler ShapeModifyHandler where
       KeyboardKey_Down -> todlbox (0,1)
       _ -> Nothing
 
-    r = if _boxHandler_active bh
+    r = if _shapeModifyHandler_active bh
       -- ignore inputs when we're in the middle of dragging
       then Nothing
       else case mmove of
@@ -864,43 +835,12 @@ instance PotatoHandler ShapeModifyHandler where
                 Just op -> HOA_Preview $ Preview PO_StartAndCommit op
             }
 
-  pRenderHandler BoxHandler {..} PotatoHandlerInput {..} = r where
+  pRenderHandler ShapeModifyHandler {..} PotatoHandlerInput {..} = r where
     handlePoints = fmap _mouseManipulator_box . filter (\mm -> _mouseManipulator_type mm == MouseManipulatorType_Corner) $ toMouseManipulators _potatoHandlerInput_pFState _potatoHandlerInput_canvasSelection
-
-    {-- 
-    -- kind of a hack to put this here, since BoxHandler is generic, but that's how it has to be for now since BoxHandler is also kind of not generic
-    -- I guess in the future you might have more specific handlers for each type of owl in which case you can do the thing where the specific handler also has a ref to BoxHandler and you render both (you did this with the text handler already)
-    -- TODO and this is an issue becaues you don't want to show the box label handler when you are editing the box label 
-    mBoxLabelHandler = case selectionOnlySBox _potatoHandlerInput_canvasSelection of
-      Nothing -> Nothing
-      Just sbox -> if sBoxType_hasBorder (_sBox_boxType sbox)
-        then if w > 1
-          then Just $ RenderHandle {
-              _renderHandle_box = LBox (V2 (x+1) y) (V2 1 1)
-              , _renderHandle_char  = Just 'T'
-              , _renderHandle_color = RHC_Cursor
-            } 
-          else Nothing 
-        else Nothing
-        where (LBox (V2 x y) (V2 w h)) = _sBox_box sbox
-
-    mcons :: Maybe a -> [a] -> [a]
-    mcons ma as = maybe as (:as) ma
-    --}
 
     -- TODO highlight active manipulator if active
     --if (_boxHandler_active)
-    r = if not _boxHandler_active && boxCreationType_isCreation _boxHandler_creation
-      -- don't render anything if we are about to create a box
-      then emptyHandlerRenderOutput
-      --else HandlerRenderOutput (mcons mBoxLabelHandler $ fmap defaultRenderHandle handlePoints)
-      else HandlerRenderOutput (fmap defaultRenderHandle handlePoints)
+    r = HandlerRenderOutput (fmap defaultRenderHandle handlePoints)
       
-  pIsHandlerActive bh = if _boxHandler_active bh then HAS_Active_Mouse else HAS_Inactive
+  pIsHandlerActive bh = if _shapeModifyHandler_active bh then HAS_Active_Mouse else HAS_Inactive
 
-  pHandlerTool BoxHandler {..} = case _boxHandler_creation of
-    BoxCreationType_Box -> Just Tool_Box
-    BoxCreationType_Text -> Just Tool_Text
-    BoxCreationType_TextArea -> Just Tool_TextArea
-    _ -> Nothing
--}

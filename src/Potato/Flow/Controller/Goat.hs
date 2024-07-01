@@ -187,7 +187,7 @@ makeHandlerFromNewTool GoatState{..} = \case
   Tool_Text   -> SomePotatoHandler $ def { _boxHandler_creation = BoxCreationType_Text }
   Tool_TextArea -> SomePotatoHandler $ def { _boxHandler_creation = BoxCreationType_TextArea }
   Tool_Pan           -> SomePotatoHandler $ (def :: PanHandler)
-  Tool_Shape         -> SomePotatoHandler $ (def :: ShapeCreationHandler)
+  Tool_Shape         -> SomePotatoHandler $ (def { _shapeCreationHandler_shapeType = ShapeType_Box } )
 
 
 -- TODO rename to makeHandlerFromCanvasSelection

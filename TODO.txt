@@ -236,13 +236,15 @@ DONE-generalize object and manipulator refactor likely
     -drag_project :: (x,y) -> Maybe (x,y)
   IGNORE-generalize Box handler bulk maniplutaion ???
     -you need to generalize this for lines too
-  
+-make BoxLabelHandler generic to shapes
+-make BoxTextHandler generic to shapes
+-finish ShapeModifyHandler when you do the above 2 things
 
 -shape tool spec
   -can we generalize box and boxtext handlers to support any shape
-    -I think you need to consider refactoring box handler whichever way
+    DONE-I think you need to consider refactoring box handler whichever way
       -NO I think you can just keep overloading...
-    -parameterize the following
+    DONE-parameterize the following
       -transform box -> shape -> transform box (when resizing)
       -shape -> Maybe text label position
       -shape -> Maybe text area 
