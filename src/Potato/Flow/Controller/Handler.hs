@@ -183,7 +183,9 @@ handlerName_pan = "PanHandler"
 handlerName_select :: Text
 handlerName_select = "SelectHandler"
 handlerName_shape :: Text
-handlerName_shape = "ShapeHandler"
+handlerName_shape = "ShapeCreationHandler"
+handlerName_shapeModify :: Text
+handlerName_shapeModify = "ShapeModifyHandler"
 handlerName_empty :: Text
 handlerName_empty = "EmptyHandler"
 

@@ -13,17 +13,19 @@ import Potato.Flow.Controller.Types
 import Potato.Flow.OwlItem
 
 
+data ShapeDef o = ShapeDef {
+  _shapeDef_name :: Text
+  , _shapeDef_create :: PotatoDefaultParameters -> LBox -> OwlItem
+  , _shapeDef_impl :: o -> ShapeImpl
+}
 
-data ShapeImpl o = ShapeImpl {
-  _shapeImpl_name :: Text
-  , _shapeImpl_create :: PotatoDefaultParameters -> LBox -> OwlItem
-  , _shapeImpl_updateFromLBox :: o -> LBox -> o
-  , _shapeImpl_toLBox :: o -> LBox
-  , _shapeImpl_textArea :: o -> Maybe CanonicalLBox
-  , _shapeImpl_textLabel :: o -> [CanonicalLBox]
-  , _shapeImpl_startingAttachments :: o -> [AvailableAttachment]
+data ShapeImpl = ShapeImpl {
+  _shapeImpl_updateFromLBox :: REltId -> LBox -> Llama
+  , _shapeImpl_toLBox :: LBox
+  , _shapeImpl_textArea :: Maybe CanonicalLBox
+  , _shapeImpl_textLabel :: [CanonicalLBox]
+  , _shapeImpl_startingAttachments :: [AvailableAttachment]
   --TODO this should take a OwlItemCache?
-  , _shapeImpl_draw :: o -> SEltDrawer
-
+  , _shapeImpl_draw :: SEltDrawer
 }
 
