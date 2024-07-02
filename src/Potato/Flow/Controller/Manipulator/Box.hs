@@ -518,6 +518,8 @@ instance PotatoHandler BoxHandler where
 -- TODO move this to a more appropriate place
 data ShapeType = ShapeType_Unknown | ShapeType_Box deriving (Show, Eq)
 
+
+
 boxShapeDef :: ShapeDef SBox
 boxShapeDef = ShapeDef {
     _shapeDef_name = "SBox"
@@ -537,11 +539,18 @@ boxShapeDef = ShapeDef {
       , _shapeImpl_textLabel = if sBoxType_hasBorder (_sBox_boxType sbox) 
         then [canonicalLBox_from_lBox (lBox_to_boxLabelBox (_sBox_box sbox))]
         else []
+
+        -- TODO
+      , _shapeImpl_setTextLabel = undefined
+
+
       , _shapeImpl_startingAttachments = if sBoxType_hasBorder (_sBox_boxType sbox)
         then []
         else availableAttachLocationsFromLBox True (_sBox_box sbox)
       , _shapeImpl_draw = sBox_drawer sbox
     }
+    , _shapeDef_labelImpl = \i -> assert (i == 0) boxLabelImpl
+    , _shapeDef_textAreaImpl = boxTextImpl
   }
 
 shapeType_to_owlItem :: PotatoDefaultParameters -> CanonicalLBox -> ShapeDef o -> OwlItem

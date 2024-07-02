@@ -13,6 +13,7 @@ import          Potato.Flow.Llama
 import Potato.Flow.Controller.Types
 import Potato.Flow.OwlItem
 import Potato.Flow.Owl
+import Potato.Flow.Controller.Manipulator.TextInputState
 
 import Data.Default
 import qualified Text.Show
@@ -21,7 +22,15 @@ data ShapeDef o = ShapeDef {
   _shapeDef_name :: Text
   , _shapeDef_create :: PotatoDefaultParameters -> LBox -> OwlItem
   , _shapeDef_impl :: o -> ShapeImpl
+  -- NOTE these are separate from _shapeDef_impl as I didn't want to rewrite TextImpl to pull out the `o` 
+  , _shapeDef_labelImpl :: Int -> TextImpl o
+  , _shapeDef_textAreaImpl :: TextImpl o
 }
+
+
+
+
+
 
 data ShapeImpl = ShapeImpl {
   _shapeImpl_updateFromLBox :: REltId -> LBox -> Llama
@@ -43,6 +52,8 @@ emptyShapeDef = ShapeDef {
   _shapeDef_name = "empty"
   , _shapeDef_create = \_ _ -> error "emptyShapeDef"
   , _shapeDef_impl = \_ -> emptyShapeImpl
+  , _shapeDef_labelImpl = \_ -> error "emptyShapeDef"
+  , _shapeDef_textAreaImpl = error "emptyShapeDef"
 }
 
 emptyShapeImpl :: ShapeImpl

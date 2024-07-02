@@ -13,6 +13,10 @@ module Potato.Flow.Controller.Manipulator.BoxText (
   , shrink_lBox_no_negative
   , getSBoxTextBox
 
+  -- TODO rename to boxTextAreaTextImpl and boxLabelTextImpl
+  , boxTextImpl
+  , boxLabelImpl
+
   -- exposed for testing
   , makeTextInputState
   , mouseText
@@ -237,6 +241,7 @@ instance PotatoHandler BoxTextHandler where
 
 
 -- BOX LABEL STUFF STARTS HERE
+-- DELETE ME FOR ShapeLabelHandler
 data BoxLabelHandler = BoxLabelHandler {
     _boxLabelHandler_active      :: Bool
     -- NOTE some fields in here are ignored or interpreted differently from BoxTextHandler
@@ -383,3 +388,136 @@ instance PotatoHandler BoxLabelHandler where
 
   -- TODO set properly
   pIsHandlerActive tah = if _boxLabelHandler_active tah then HAS_Active_Mouse else HAS_Active_Keyboard
+
+
+
+
+
+
+
+-- TODO try and remove the o from LHS
+-- WIP SHAPE LABEL STUFF STARTS HERE
+data ShapeLabelHandler o = ShapeLabelHandler {
+    _shapeLabelHandler_active      :: Bool
+    -- NOTE some fields in here are ignored or interpreted differently from BoxTextHandler
+    , _shapeLabelHandler_state       :: TextInputState
+    , _shapeLabelHandler_prevHandler :: SomePotatoHandler
+    , _shapeLabelHandler_undoFirst   :: Bool
+    , _shapeLabelHandler_textLabelImpl :: TextImpl o
+  }
+
+makeShapeLabelInputState :: TextImpl o -> REltId -> o -> RelMouseDrag -> TextInputState
+makeShapeLabelInputState textImpl = makeOwlItemTextInputState textImpl
+
+makeShapeLabelHandler :: TextImpl o -> SomePotatoHandler -> CanvasSelection -> RelMouseDrag -> ShapeLabelHandler o
+makeShapeLabelHandler textImpl prev selection rmd = ShapeLabelHandler {
+      _shapeLabelHandler_active = False
+      , _shapeLabelHandler_state = uncurry (makeShapeLabelInputState textImpl) (_textImpl_mustGetOwlItem textImpl selection) rmd
+      , _shapeLabelHandler_prevHandler = prev
+      , _shapeLabelHandler_undoFirst = False
+
+    }
+
+updateShapeLabelHandlerState :: Bool -> CanvasSelection -> ShapeLabelHandler o -> ShapeLabelHandler o
+updateShapeLabelHandlerState reset selection tah@ShapeLabelHandler {..} = r where
+  nextstate = updateOwlItemTextInputState _shapeLabelHandler_textLabelImpl reset selection _shapeLabelHandler_state
+  r = tah {
+    _shapeLabelHandler_state = nextstate
+    , _shapeLabelHandler_undoFirst = if reset
+      then False
+      else _shapeLabelHandler_undoFirst
+  }
+
+
+inputShapeLabel :: TextImpl o -> TextInputState -> SuperOwl -> KeyboardKey -> (TextInputState, Maybe Llama)
+inputShapeLabel textImpl tais sowl kk = inputOwlItem textImpl tais sowl kk
+
+
+-- | just a helper for pHandleMouse
+handleMouseDownOrFirstUpForShapeLabelHandler :: ShapeLabelHandler o -> PotatoHandlerInput -> RelMouseDrag -> Bool -> Maybe PotatoHandlerOutput
+handleMouseDownOrFirstUpForShapeLabelHandler tah@ShapeLabelHandler {..} phi@PotatoHandlerInput {..} rmd@(RelMouseDrag MouseDrag {..}) isdown = r where
+  clickInside = does_lBox_contains_XY (_textInputState_box _shapeLabelHandler_state) _mouseDrag_to
+  newState = mouseText _shapeLabelHandler_state rmd
+  r = if clickInside
+    then Just $ def {
+        _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler tah {
+            _shapeLabelHandler_active = isdown
+            , _shapeLabelHandler_state = newState
+          }
+      }
+    -- pass the input on to the base handler (so that you can interact with BoxHandler mouse manipulators too)
+    else pHandleMouse _shapeLabelHandler_prevHandler phi rmd
+
+
+instance PotatoHandler (ShapeLabelHandler o) where
+  pHandlerName _ = handlerName_shapeLabel
+  pHandlerDebugShow ShapeLabelHandler {..} = LT.toStrict $ Pretty.pShowNoColor _shapeLabelHandler_state
+
+  -- UNTESTED
+  pHandleMouse tah' phi@PotatoHandlerInput {..} rmd@(RelMouseDrag MouseDrag {..}) = let
+      tah@ShapeLabelHandler {..} = updateShapeLabelHandlerState False _potatoHandlerInput_canvasSelection tah'
+    in case _mouseDrag_state of
+
+
+      MouseDragState_Down -> handleMouseDownOrFirstUpForShapeLabelHandler tah phi rmd True
+
+      -- TODO drag select text someday
+      MouseDragState_Dragging -> Just $ captureWithNoChange tah
+
+      MouseDragState_Up -> if not _shapeLabelHandler_active
+        then handleMouseDownOrFirstUpForShapeLabelHandler tah phi rmd False
+        else Just $ def {
+            _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler tah {
+                _shapeLabelHandler_active = False
+              }
+          }
+
+      MouseDragState_Cancelled -> Just $ captureWithNoChange tah
+
+  pHandleKeyboard tah' PotatoHandlerInput {..} (KeyboardData k _) = case k of
+    KeyboardKey_Esc -> Just $ def { _potatoHandlerOutput_nextHandler = Just (_shapeLabelHandler_prevHandler tah') }
+    -- TODO should only capture stuff caught by inputSingleLineZipper
+    _ -> Just r where
+      -- this regenerates displayLines unecessarily but who cares
+      tah@ShapeLabelHandler {..} = updateShapeLabelHandlerState False _potatoHandlerInput_canvasSelection tah'
+      sowl = selectionToSuperOwl _potatoHandlerInput_canvasSelection
+
+      -- TODO decide what to do with mods
+
+      (nexttais, mllama) = inputShapeLabel _shapeLabelHandler_textLabelImpl _shapeLabelHandler_state sowl k
+      r = def {
+          _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler tah {
+              _shapeLabelHandler_state  = nexttais
+              , _shapeLabelHandler_undoFirst = case mllama of
+                Nothing -> _shapeLabelHandler_undoFirst
+                --Nothing -> False -- this variant adds new undo point each time cursoer is moved
+                Just _  -> True
+            }
+          , _potatoHandlerOutput_action = maybe HOA_Nothing (HOA_Preview . Preview (previewOperation_fromUndoFirst _shapeLabelHandler_undoFirst)) mllama
+        }
+
+  -- UNTESTED
+  -- TODO do you need to reset _shapeLabelHandler_prevHandler as well?
+  pRefreshHandler tah PotatoHandlerInput {..} = if Seq.null (unCanvasSelection _potatoHandlerInput_canvasSelection)
+    then Nothing -- selection was deleted or something
+    else if rid /= (_textInputState_rid $ _shapeLabelHandler_state tah)
+      then Nothing -- selection was change to something else
+      else case selt of
+        SEltBox sbox -> if sBoxType_hasBorder (_sBox_boxType sbox)
+          -- TODO this needs to merge the TextZipper if change came due to remote event
+          then Just $ SomePotatoHandler $ updateShapeLabelHandlerState True _potatoHandlerInput_canvasSelection tah
+          -- SEltBox type changed to non-text
+          else Nothing
+        _ -> Nothing
+      where
+        sowl = selectionToSuperOwl _potatoHandlerInput_canvasSelection
+        rid = _superOwl_id sowl
+        selt = superOwl_toSElt_hack sowl
+
+  pRenderHandler tah' phi@PotatoHandlerInput {..} = r where
+    tah = updateShapeLabelHandlerState False _potatoHandlerInput_canvasSelection tah'
+    btis = _shapeLabelHandler_state tah
+    r = pRenderHandler (_shapeLabelHandler_prevHandler tah) phi <> makeTextHandlerRenderOutput btis
+
+  -- TODO set properly
+  pIsHandlerActive tah = if _shapeLabelHandler_active tah then HAS_Active_Mouse else HAS_Active_Keyboard
