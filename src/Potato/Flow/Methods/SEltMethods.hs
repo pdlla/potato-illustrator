@@ -199,6 +199,21 @@ sTextArea_drawer STextArea {..} = r where
       , _sEltDrawer_maxCharWidth = 1
     }
 
+
+sEllipse_drawer :: SEllipse -> SEltDrawer
+sEllipse_drawer sellipse = SEltDrawer {
+  _sEltDrawer_box = \_ -> _sEllipse_box sellipse
+  , _sEltDrawer_renderFn = sEllipse_renderFn sellipse
+  , _sEltDrawer_maxCharWidth = 1
+}
+
+-- TODO proper rendering
+sEllipse_renderFn :: forall a. (HasOwlTree a) => SEllipse -> a -> XY -> Maybe PChar
+sEllipse_renderFn sellipse ot (V2 x y) = if does_lBox_contains_XY (_sEllipse_box sellipse) (V2 x y)
+  then Just '#'
+  else Nothing
+
+
 -- NOTE that there is not a 1-1 mapping between `OwlSubItem` and `OwlItemCache` as the `OwlItemCache` is dependent on the OwlTree
 -- this function assumes that you are requesting the drawer with the intent of passing in an OwlTree
 -- TODO it would have been better for SEltDrawer to be created based on an OwlTree rather than return a function that takes an OwlTree
@@ -212,8 +227,8 @@ getDrawerWithCache osubitem mcache = case osubitem of
     Nothing -> sSimpleLineNewRenderFn sline Nothing
     _ -> assert False (sSimpleLineNewRenderFn sline Nothing)
   OwlSubItemTextArea stextarea  -> sTextArea_drawer stextarea
+  OwlSubItemEllipse sellipse -> sEllipse_drawer sellipse
 
--- TODO pass in cache here
 getDrawer :: OwlSubItem -> SEltDrawer
 getDrawer = \case
   OwlSubItemNone        -> nilDrawer
@@ -221,6 +236,7 @@ getDrawer = \case
   OwlSubItemBox sbox    -> sBox_drawer sbox
   OwlSubItemLine sline -> sSimpleLineNewRenderFn sline Nothing
   OwlSubItemTextArea stextarea  -> sTextArea_drawer stextarea
+  OwlSubItemEllipse sellipse -> sEllipse_drawer sellipse
   {-
   where
     potatoDrawer = SEltDrawer {

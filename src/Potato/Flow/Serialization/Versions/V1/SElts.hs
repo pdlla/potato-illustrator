@@ -437,6 +437,12 @@ data SEllipse = SEllipse {
   , _sEllipse_text :: SBoxText
 } deriving (Eq, Generic, Show)
 
+instance Default SEllipse where
+  def = SEllipse {
+      _sEllipse_box = LBox 0 0
+      , _sEllipse_text = def
+    }
+
 instance FromJSON SEllipse
 instance ToJSON SEllipse
 instance Binary SEllipse
