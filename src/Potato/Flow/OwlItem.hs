@@ -19,6 +19,7 @@ data OwlSubItem =
   | OwlSubItemBox SBox
   | OwlSubItemLine SAutoLine
   | OwlSubItemTextArea STextArea
+  | OwlSubItemEllipse SEllipse
   deriving (Generic, Show, Eq)
 
 instance NFData OwlSubItem
@@ -42,6 +43,7 @@ instance PotatoShow OwlItem where
         OwlSubItemBox sbox -> show sbox
         OwlSubItemLine sline -> show sline
         OwlSubItemTextArea stextarea -> show stextarea
+        OwlSubItemEllipse sellipse -> show sellipse
 
 class MommyOwl o where
   mommyOwl_kiddos :: o -> Maybe (Seq REltId)
@@ -83,6 +85,7 @@ owlSubItem_to_sElt_hack = \case
   OwlSubItemBox sbox -> SEltBox sbox
   OwlSubItemLine sline -> SEltLine sline
   OwlSubItemTextArea stextarea -> SEltTextArea stextarea
+  OwlSubItemEllipse sellipse -> SEltEllipse sellipse
   OwlSubItemNone -> SEltNone
 
 instance HasOwlItem OwlItem where
@@ -106,5 +109,6 @@ sElt_to_owlSubItem s = case s of
   SEltBox x -> OwlSubItemBox x
   SEltLine x -> OwlSubItemLine x
   SEltTextArea x -> OwlSubItemTextArea x
+  SEltEllipse x -> OwlSubItemEllipse x
   SEltNone -> OwlSubItemNone
   _ -> error $ "cannot convert " <> show s

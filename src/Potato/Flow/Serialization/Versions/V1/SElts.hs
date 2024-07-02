@@ -192,6 +192,7 @@ instance Default SBoxTitle where
 instance Show SBoxTitle where
   show SBoxTitle {..} = "SBoxTitle: " <> show _sBoxTitle_align <> " " <> show _sBoxTitle_title
 
+-- TODO maybe rename
 -- |
 data SBoxText = SBoxText {
   _sBoxText_text    :: Text
@@ -431,6 +432,16 @@ instance ToJSON STextArea
 instance Binary STextArea
 instance NFData STextArea
 
+data SEllipse = SEllipse {
+  _sEllipse_box :: LBox
+  , _sEllipse_text :: SBoxText
+} deriving (Eq, Generic, Show)
+
+instance FromJSON SEllipse
+instance ToJSON SEllipse
+instance Binary SEllipse
+instance NFData SEllipse
+
 -- TODO consider removing this all together and serializing Owl stuff directly
 data SElt =
   SEltNone
@@ -439,6 +450,7 @@ data SElt =
   | SEltBox SBox
   | SEltLine SAutoLine
   | SEltTextArea STextArea
+  | SEltEllipse SEllipse
   deriving (Eq, Generic, Show)
 
 instance FromJSON SElt
