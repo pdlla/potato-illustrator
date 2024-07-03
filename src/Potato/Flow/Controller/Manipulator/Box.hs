@@ -671,7 +671,6 @@ data ShapeModifyHandler = ShapeModifyHandler {
     , _shapeModifyHandler_prevDeltaLBox :: Maybe DeltaLBox
 
     , _shapeModifyHandler_shapeType :: ShapeType
-    , _shapeModifyHandler_impl :: ShapeImpl
 
   } deriving (Show)
 
@@ -684,7 +683,6 @@ instance Default ShapeModifyHandler where
       , _shapeModifyHandler_isDragSelect = False
       , _shapeModifyHandler_prevDeltaLBox = Nothing
       , _shapeModifyHandler_shapeType = ShapeType_Box
-      , _shapeModifyHandler_impl = emptyShapeImpl
     }
 
 shapeModifyHandlerFromSelection :: CanvasSelection -> ShapeModifyHandler
@@ -697,18 +695,19 @@ shapeModifyHandlerFromSelection cs = r where
   }
 
 
-findWhichTextLabelMouseIsOver :: ShapeModifyHandler -> RelMouseDrag -> Maybe Int
-findWhichTextLabelMouseIsOver ShapeModifyHandler {..} (RelMouseDrag MouseDrag {..}) = 
-  L.findIndex (\lbox -> does_lBox_contains_XY (lBox_from_canonicalLBox lbox) _mouseDrag_from) $ _shapeImpl_textLabel _shapeModifyHandler_impl
+findWhichTextLabelMouseIsOver :: ShapeImpl -> ShapeModifyHandler -> RelMouseDrag -> Maybe Int
+findWhichTextLabelMouseIsOver shapeImpl ShapeModifyHandler {..} (RelMouseDrag MouseDrag {..}) = 
+  L.findIndex (\lbox -> does_lBox_contains_XY (lBox_from_canonicalLBox lbox) _mouseDrag_from) $ _shapeImpl_textLabel shapeImpl
 
 
 instance PotatoHandler ShapeModifyHandler where
   pHandlerName _ = handlerName_shapeModify
   pHandleMouse bh@ShapeModifyHandler {..} phi@PotatoHandlerInput {..} rmd@(RelMouseDrag MouseDrag {..}) = let
-      --shapeDef = case _shapeCreationHandler_shapeType of
-      --  ShapeType_Box -> boxShapeDef
-      --  ShapeType_Unknown -> error "attempting to use ShapeModifyHandler with ShapeType_Unknown"
-      --selt = superOwl_toSElt_hack $ selectionToFirstSuperOwl _potatoHandlerInput_canvasSelection
+      selt = superOwl_toSElt_hack $ selectionToFirstSuperOwl _potatoHandlerInput_canvasSelection
+      (shapeDef, shapeImpl) = case (_shapeModifyHandler_shapeType, selt) of
+        (ShapeType_Box, SEltBox sbox) -> (boxShapeDef, _shapeDef_impl boxShapeDef sbox)
+        (x, y) -> error ("attempting to use ShapeModifyHandler with (" <> show x <> ", " <> show y <> ")")
+
     in case _mouseDrag_state of
 
       -- if shift is held down, ignore inputs, this allows us to shift + click to deselect
@@ -731,7 +730,7 @@ instance PotatoHandler ShapeModifyHandler where
           newbh = bh {
               _shapeModifyHandler_handle = bht
               , _shapeModifyHandler_active = True
-              , _shapeModifyHandler_downOnLabel = findWhichTextLabelMouseIsOver bh rmd
+              , _shapeModifyHandler_downOnLabel = findWhichTextLabelMouseIsOver shapeImpl bh rmd
             }
           bht = toEnum mi
           -- special case behavior for BH_A require actually clicking on something on selection
@@ -768,10 +767,10 @@ instance PotatoHandler ShapeModifyHandler where
               Just op -> HOA_Preview $ Preview (previewOperation_fromUndoFirst _shapeModifyHandler_undoFirst) op
           }
 
-      MouseDragState_Up | isJust _shapeModifyHandler_downOnLabel -> if findWhichTextLabelMouseIsOver bh rmd == _shapeModifyHandler_downOnLabel
-        -- TODO make BoxHandler generic
+      MouseDragState_Up | isJust _shapeModifyHandler_downOnLabel -> if findWhichTextLabelMouseIsOver shapeImpl bh rmd == _shapeModifyHandler_downOnLabel
         -- clicked on the text label area
-        then pHandleMouse (makeBoxLabelHandler (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
+        then case _shapeModifyHandler_downOnLabel of
+          Just i -> pHandleMouse (makeShapeLabelHandler (_shapeDef_labelImpl shapeDef i) (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
         else Nothing
 
       MouseDragState_Up -> r where

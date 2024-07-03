@@ -17,6 +17,8 @@ module Potato.Flow.Controller.Manipulator.BoxText (
   , boxTextImpl
   , boxLabelImpl
 
+  , makeShapeLabelHandler
+
   -- exposed for testing
   , makeTextInputState
   , mouseText
@@ -395,7 +397,7 @@ instance PotatoHandler BoxLabelHandler where
 
 
 
--- TODO try and remove the o from LHS
+-- TODO get rid of the o, it's possible but you need to refactor all the methods to do the SomeTextImpl sorta thing
 -- WIP SHAPE LABEL STUFF STARTS HERE
 data ShapeLabelHandler o = ShapeLabelHandler {
     _shapeLabelHandler_active      :: Bool
