@@ -799,7 +799,7 @@ instance PotatoHandler ShapeModifyHandler where
 
           -- TODO make BoxTextHandler generic to shapes
           -- create box handler and pass on the input (if it was not a text box it will be converted to one by the BoxTextHandler)
-          then pHandleMouse (makeBoxTextHandler False (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
+          then pHandleMouse (makeShapeTextHandler (_shapeDef_textAreaImpl shapeDef) False (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
           -- This clears the handler and causes selection to regenerate a new handler.
           -- Why do we do it this way instead of returning a handler? Not sure, doesn't matter.
           else Just def {

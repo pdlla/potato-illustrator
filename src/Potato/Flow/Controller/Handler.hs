@@ -186,6 +186,8 @@ handlerName_shape :: Text
 handlerName_shape = "ShapeCreationHandler"
 handlerName_shapeModify :: Text
 handlerName_shapeModify = "ShapeModifyHandler"
+handlerName_shapeText :: Text
+handlerName_shapeText = "ShapeTextHandler"
 handlerName_shapeLabel :: Text
 handlerName_shapeLabel = "ShapeLabelHandler"
 handlerName_empty :: Text

@@ -17,6 +17,7 @@ module Potato.Flow.Controller.Manipulator.BoxText (
   , boxTextImpl
   , boxLabelImpl
 
+  , makeShapeTextHandler
   , makeShapeLabelHandler
 
   -- exposed for testing
@@ -47,6 +48,8 @@ import qualified Potato.Data.Text.Zipper                          as TZ
 import qualified Text.Pretty.Simple as Pretty
 import qualified Data.Text.Lazy as LT
 
+
+-- TODO DELETE ME FOR SHAPE LABEL HANDLER
 data BoxTextHandler = BoxTextHandler {
     -- TODO Delete this
     _boxTextHandler_isActive      :: Bool
@@ -397,11 +400,161 @@ instance PotatoHandler BoxLabelHandler where
 
 
 
--- TODO get rid of the o, it's possible but you need to refactor all the methods to do the SomeTextImpl sorta thing
--- WIP SHAPE LABEL STUFF STARTS HERE
+
+
+
+
+
+
+
+-- WIP SHAPETEXTHANDLER STARTS HERE
+data ShapeTextHandler o = ShapeTextHandler {
+    -- TODO Delete this
+    _shapeTextHandler_isActive      :: Bool
+    
+    , _shapeTextHandler_state       :: TextInputState
+    -- TODO you can prob delete this now, we don't persist state between sub handlers in this case
+    , _shapeTextHandler_prevHandler :: SomePotatoHandler
+    , _shapeTextHandler_undoFirst   :: Bool
+
+    , _shapeTextHandler_commitOnMouseUp :: Bool
+
+    , _shapeTextHandler_textImpl :: TextImpl o
+  }
+
+
+makeShapeTextHandler :: TextImpl o -> Bool -> SomePotatoHandler -> CanvasSelection -> RelMouseDrag -> ShapeTextHandler o
+makeShapeTextHandler textImpl commit prev selection rmd = ShapeTextHandler {
+      _shapeTextHandler_isActive = False
+      , _shapeTextHandler_state = uncurry (makeOwlItemTextInputState textImpl) (_textImpl_mustGetOwlItem textImpl $ selection) rmd
+      , _shapeTextHandler_prevHandler = prev
+      , _shapeTextHandler_undoFirst = False
+      , _shapeTextHandler_commitOnMouseUp = commit
+      , _shapeTextHandler_textImpl = textImpl
+    }
+
+updateShapeTextHandlerState :: TextImpl o -> Bool -> CanvasSelection -> ShapeTextHandler o -> ShapeTextHandler o
+updateShapeTextHandlerState textImpl reset selection tah@ShapeTextHandler {..} = r where
+  nextstate = updateOwlItemTextInputState textImpl reset selection _shapeTextHandler_state
+  r = tah {
+    _shapeTextHandler_state = nextstate
+    , _shapeTextHandler_undoFirst = if reset
+      then False
+      else _shapeTextHandler_undoFirst
+  }
+
+instance PotatoHandler (ShapeTextHandler o) where
+  pHandlerName _ = handlerName_shapeText
+  pHandlerDebugShow ShapeTextHandler {..} = LT.toStrict $ Pretty.pShowNoColor _shapeTextHandler_state
+  pHandleMouse tah' phi@PotatoHandlerInput {..} rmd@(RelMouseDrag MouseDrag {..}) = let
+      (rid, sbox) = getSBox _potatoHandlerInput_canvasSelection
+      tah@ShapeTextHandler {..} = updateShapeTextHandlerState _shapeTextHandler_textImpl False _potatoHandlerInput_canvasSelection tah'
+    in case _mouseDrag_state of
+      MouseDragState_Down -> r where
+        clickInside = does_lBox_contains_XY (_textInputState_box _shapeTextHandler_state) _mouseDrag_to
+        newState = mouseText _shapeTextHandler_state rmd
+        r = if clickInside
+          then Just $ def {
+              _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler tah {
+                  _shapeTextHandler_isActive = True
+                  , _shapeTextHandler_state = newState
+                }
+            }
+          -- pass the input on to the base handler (so that you can interact with BoxHandler mouse manipulators too)
+          else pHandleMouse _shapeTextHandler_prevHandler phi rmd
+
+      -- TODO drag select text someday
+      MouseDragState_Dragging -> Just $ captureWithNoChange tah
+
+      MouseDragState_Up -> r where
+
+        -- if box is not text box, convert to text box and set undoFirst to True
+        oldbt = _sBox_boxType $ sbox
+        istext = sBoxType_isText oldbt
+        newbt = make_sBoxType (sBoxType_hasBorder oldbt) True
+
+        -- if it's not a text box, convert it to one (remember that this gets called from pHandleMouse with MouseDragState_Up in BoxHandler)
+        r = if not istext
+          then Just $ def {
+              _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler tah {
+                  _shapeTextHandler_isActive = False    
+                }
+              -- TODO change this to just PO_Start
+              -- the issue here is when you undo, it becomes not a text box, so you need to make sure to convert it to a text box in the preview operation (actually to do that, there's no point in converting it here really)
+              -- NOTE if we PO_Start/_shapeTextHandler_undoFirst = True we will undo the conversion to text box :(. It's fine, just permanently convert it to a text box, NBD
+              -- also NOTE that this will not undo the text box conversion if you cancel this handler, it will just permanently be a text box now.
+              -- NOTE this creates a weird undo operation that just converts from text to not text which is weird
+              , _potatoHandlerOutput_action = HOA_Preview $ Preview PO_StartAndCommit $ makePFCLlama . OwlPFCManipulate $ IM.fromList [(rid, CTagBoxType :=> Identity (CBoxType (oldbt, newbt)))]
+
+            }
+          else Just $ def {
+              _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler tah {
+                  _shapeTextHandler_isActive = False
+                  , _shapeTextHandler_commitOnMouseUp = False
+                }
+              , _potatoHandlerOutput_action = if _shapeTextHandler_commitOnMouseUp then HOA_Preview Preview_Commit else HOA_Nothing
+            }
+      MouseDragState_Cancelled -> Just $ captureWithNoChange tah
+
+  pHandleKeyboard tah' PotatoHandlerInput {..} (KeyboardData k _) = case k of
+    KeyboardKey_Esc -> Just $ def { _potatoHandlerOutput_nextHandler = Just (_shapeTextHandler_prevHandler tah') }
+    -- TODO should only capture stuff caught by inputBoxTextZipper
+
+    _ -> Just r where
+      -- this regenerates displayLines unecessarily but who cares
+      tah = updateShapeTextHandlerState (_shapeTextHandler_textImpl tah') False _potatoHandlerInput_canvasSelection tah'
+      sowl = selectionToSuperOwl _potatoHandlerInput_canvasSelection
+
+      -- TODO decide what to do with mods
+
+      (nexttais, mllama) = inputBoxText (_shapeTextHandler_state tah) sowl k
+      r = def {
+          _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler tah {
+              _shapeTextHandler_state  = nexttais
+              , _shapeTextHandler_undoFirst = case mllama of
+                Nothing -> _shapeTextHandler_undoFirst tah
+                --Nothing -> False -- this variant adds new undo point each time cursoer is moved
+                Just _  -> True
+            }
+          -- TODO do a Preview_Cancel if we reverted back to original text
+          -- TODO we want to PO_Continue here, but we don't have a good place to commit right now as there's no explicit cancel for us to Preview_Commit
+          , _potatoHandlerOutput_action = maybe HOA_Nothing (HOA_Preview . Preview (previewOperation_fromUndoFirst (_shapeTextHandler_undoFirst tah))) mllama
+
+        }
+
+  -- TODO do you need to reset _shapeTextHandler_prevHandler as well?
+  pRefreshHandler tah PotatoHandlerInput {..} = if Seq.null (unCanvasSelection _potatoHandlerInput_canvasSelection)
+    then Nothing -- selection was deleted or something
+    else if rid /= (_textInputState_rid $ _shapeTextHandler_state tah)
+      then Nothing -- selection was change to something else
+      else case selt of
+        SEltBox sbox -> if not $ sBoxType_isText (_sBox_boxType sbox)
+          then Nothing -- SEltBox type changed to non-text
+          -- TODO this needs to merge the TextZipper if change came due to remote event
+          else Just $ SomePotatoHandler $ updateShapeTextHandlerState (_shapeTextHandler_textImpl tah) True _potatoHandlerInput_canvasSelection tah
+        _ -> Nothing
+      where
+        sowl = selectionToSuperOwl _potatoHandlerInput_canvasSelection
+        rid = _superOwl_id sowl
+        selt = superOwl_toSElt_hack sowl
+
+  pRenderHandler tah' phi@PotatoHandlerInput {..} = r where
+    tah = updateShapeTextHandlerState (_shapeTextHandler_textImpl tah') False _potatoHandlerInput_canvasSelection tah'
+    btis = _shapeTextHandler_state tah
+    r = pRenderHandler (_shapeTextHandler_prevHandler tah) phi <> makeTextHandlerRenderOutput btis
+
+  -- TODO set properly (_shapeTextHandler_isActive checks mouse activity, but we have more subtle notions of active now)
+  pIsHandlerActive tah = if _shapeTextHandler_isActive tah then HAS_Active_Mouse else HAS_Active_Keyboard
+
+
+
+
+
+
+-- TODO get rid of the o, it's possible but you need to refactor all the methods to do the SomeTextImpl sorta thing, no big deal just keep the `o` lol...
 data ShapeLabelHandler o = ShapeLabelHandler {
     _shapeLabelHandler_active      :: Bool
-    -- NOTE some fields in here are ignored or interpreted differently from BoxTextHandler
+    -- NOTE some fields in here are ignored or interpreted differently from ShapeTextHandler
     , _shapeLabelHandler_state       :: TextInputState
     , _shapeLabelHandler_prevHandler :: SomePotatoHandler
     , _shapeLabelHandler_undoFirst   :: Bool

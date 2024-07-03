@@ -18,12 +18,15 @@ import Potato.Flow.Controller.Manipulator.TextInputState
 import Data.Default
 import qualified Text.Show
 
+
+-- TODO probably just combine this with ShapeImpl and make ShapeModifyHandler take an `o` parameter
 data ShapeDef o = ShapeDef {
   _shapeDef_name :: Text
   , _shapeDef_create :: PotatoDefaultParameters -> LBox -> OwlItem
   , _shapeDef_impl :: o -> ShapeImpl
   -- NOTE these are separate from _shapeDef_impl as I didn't want to rewrite TextImpl to pull out the `o` 
   , _shapeDef_labelImpl :: Int -> TextImpl o
+  -- TODO rename to textImpl (to avoid confusion with TextArea tool)
   , _shapeDef_textAreaImpl :: TextImpl o
 }
 
