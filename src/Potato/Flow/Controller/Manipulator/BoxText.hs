@@ -417,6 +417,7 @@ makeShapeLabelHandler textImpl prev selection rmd = ShapeLabelHandler {
       , _shapeLabelHandler_state = uncurry (makeShapeLabelInputState textImpl) (_textImpl_mustGetOwlItem textImpl selection) rmd
       , _shapeLabelHandler_prevHandler = prev
       , _shapeLabelHandler_undoFirst = False
+      , _shapeLabelHandler_textLabelImpl = textImpl
 
     }
 
