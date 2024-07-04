@@ -104,18 +104,18 @@ test_basic = constructTest "basic" emptyOwlPFState bs expected where
             SEltBox (SBox lbox _ _ _ _) -> lbox == LBox (V2 10 10) (V2 10 10)
             _                           -> False
           , numSelectedEltsEqualPredicate 1
-          , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+          , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
         ]
 
       , LabelCheck "modify <text>"
-      , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
-      , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
-      , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
       , checkSBoxText "<text>" "poop"
 
       , LabelCheck "move cursor <text>"
-      , checkHandlerNameAndState handlerName_boxText True -- TODO test for HAS_Active_Mouse
-      , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+      , checkHandlerNameAndState handlerName_shapeText True -- TODO test for HAS_Active_Mouse
+      , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
       , checkSBoxText "<text>" "paoop"
 
       , LabelCheck "exit BoxText"
@@ -123,7 +123,7 @@ test_basic = constructTest "basic" emptyOwlPFState bs expected where
 
       , LabelCheck "select <text> at end of line"
       , checkHandlerNameAndState handlerName_box True
-      , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
       , checkSBoxText "<text>" "paoopb"
 
       , Combine [
@@ -134,8 +134,8 @@ test_basic = constructTest "basic" emptyOwlPFState bs expected where
       , firstSuperOwlPredicate (Just "<text>") $ \sowl -> case hasOwlItem_toSElt_hack sowl of
         SEltBox (SBox _ _ _ _ boxtype) -> boxtype == SBoxType_NoBoxText
         _                                 -> False
-      , checkHandlerNameAndState handlerName_boxText True -- TODO test for HAS_Active_Mouse
-      , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+      , checkHandlerNameAndState handlerName_shapeText True -- TODO test for HAS_Active_Mouse
+      , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
       , checkSBoxText "<text>" "p🥔aoopb"
     ]
 
@@ -176,7 +176,7 @@ test_handler_state = constructTest "handler state" emptyOwlPFState bs expected w
             SEltBox (SBox lbox _ _ _ _) -> lbox == LBox (V2 10 10) (V2 10 10)
             _                           -> False
           , numSelectedEltsEqualPredicate 1
-          , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+          , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
         ]
 
       , LabelCheck "exit BoxText"
@@ -196,7 +196,7 @@ test_handler_state = constructTest "handler state" emptyOwlPFState bs expected w
 
       , LabelCheck "enter edit mode"
       , checkHandlerNameAndState handlerName_box True
-      , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
       , checkSBoxText "<text>" "😱"
 
     ]
@@ -236,18 +236,18 @@ test_negative = constructTest "negative" emptyOwlPFState bs expected where
             SEltBox (SBox lbox _ _ _ _) -> lbox == LBox (V2 0 0) (V2 (10) (10))
             _                           -> False
           , numSelectedEltsEqualPredicate 1
-          , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+          , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
         ]
 
       , LabelCheck "modify <text>"
-      , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
-      , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
-      , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
       , checkSBoxText "<text>" "goop"
 
       , LabelCheck "move cursor <text>"
-      , checkHandlerNameAndState handlerName_boxText True -- TODO this should be HAS_Active_Mouse
-      , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+      , checkHandlerNameAndState handlerName_shapeText True -- TODO this should be HAS_Active_Mouse
+      , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
       , checkSBoxText "<text>" "gaoop"
 
     ]
@@ -280,7 +280,7 @@ test_zero = constructTest "zero" emptyOwlPFState bs expected where
             SEltBox (SBox lbox _ _ _ _) -> lbox == LBox (V2 10 10) (V2 2 2)
             _                           -> False
           , numSelectedEltsEqualPredicate 1
-          , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+          , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
         ]
       , checkSBoxText "<text>" "🥔"
 
@@ -377,7 +377,7 @@ test_output = constructTest "output" emptyOwlPFState bs expected where
       , checkRenderHandlerPos (V2 15 11)
 
       , LabelCheck "move cursor <text>"
-      , checkHandlerNameAndState handlerName_boxText True
+      , checkHandlerNameAndState handlerName_shapeText True
       , checkRenderHandlerPos (V2 12 11)
       , checkRenderHandlerPos (V2 13 11)
 
@@ -453,12 +453,12 @@ test_boxlabel_basic = constructTest "basic" emptyOwlPFState bs expected where
 
       , LabelCheck "select <box> label"
       , checkHandlerNameAndState handlerName_box True
-      , checkHandlerNameAndState2 handlerName_boxLabel HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeLabel HAS_Active_Keyboard
 
       , LabelCheck "modify <box> label"
-      , checkHandlerNameAndState2 handlerName_boxLabel HAS_Active_Keyboard
-      , checkHandlerNameAndState2 handlerName_boxLabel HAS_Active_Keyboard
-      , checkHandlerNameAndState2 handlerName_boxLabel HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeLabel HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeLabel HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeLabel HAS_Active_Keyboard
       , checkSBoxLabel "<box>" "poop"
     ]
 

@@ -519,11 +519,11 @@ everything_basic_test = constructTest "basic" emptyOwlPFState bs expected where
       , EqPredicate goatState_selectedTool Tool_Text
       , checkHandlerNameAndState handlerName_box True
       , checkHandlerNameAndState handlerName_box True
-      , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
       , Combine [
           PFStateFunctionPredicate (checkNumElts 2) -- make sure second box was created
           , numSelectedEltsEqualPredicate 1
-          , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+          , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
         ]
 
       -- unselect

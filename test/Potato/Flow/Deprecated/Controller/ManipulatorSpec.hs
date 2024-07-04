@@ -307,7 +307,7 @@ test_Common_create = constructTest "create" owlpfstate_basic1 bs expected where
             SEltBox (SBox lbox _ _ _ _) -> lbox == LBox (V2 100 100) (V2 20 20)
             _                         -> False
           , numSelectedEltsEqualPredicate 1
-          , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+          , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
         ]
       , checkHandlerNameAndState handlerName_box False
 

@@ -172,10 +172,6 @@ handlerName_layersRename :: Text
 handlerName_layersRename = "LayersRenameHandler"
 handlerName_cartesianLine :: Text
 handlerName_cartesianLine = "CartesianLineHandler"
-handlerName_boxText :: Text
-handlerName_boxText = "BoxTextHandler"
-handlerName_boxLabel :: Text
-handlerName_boxLabel = "BoxLabelHandler"
 handlerName_textArea :: Text
 handlerName_textArea = "TextAreaHandler"
 handlerName_pan :: Text

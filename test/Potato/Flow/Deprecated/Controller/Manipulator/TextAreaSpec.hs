@@ -53,13 +53,13 @@ test_basic = constructTest "basic" emptyOwlPFState bs expected where
             SEltBox (SBox lbox _ _ _ _) -> lbox == LBox (V2 10 10) (V2 10 10)
             _                           -> False
           , numSelectedEltsEqualPredicate 1
-          , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+          , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
         ]
 
       , LabelCheck "modify <text>"
-      , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
-      , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
-      , checkHandlerNameAndState2 handlerName_boxText HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
+      , checkHandlerNameAndState2 handlerName_shapeText HAS_Active_Keyboard
       --, checkSBoxText "<text>" "poop"
 
     ]

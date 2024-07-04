@@ -153,7 +153,9 @@ boxCreationType_isCreation :: BoxCreationType -> Bool
 boxCreationType_isCreation bct = bct /= BoxCreationType_None && bct /= BoxCreationType_DragSelect
 
 
--- new handler stuff
+-- TODO DEPRECATE THIS, replace with ShapeCreation/ModifyHandler, you can't do this yet because:
+-- I think ShapeModifyHandler maybe shouldn't handle modifying several objects? But in that case BoxHandler should handle only this case and renamed to MultiObjectHandler or something
+-- I think BoxHandler has some special logic for entering text edit mode or something
 data BoxHandler = BoxHandler {
 
     _boxHandler_handle      :: BoxHandleType -- the current handle we are dragging
@@ -383,7 +385,7 @@ instance PotatoHandler BoxHandler where
       -- clicked on the box label area
       -- pass on mouse as MouseDragState_Down is a hack but whatever it works
       -- TODO fix this hack, just have mouse up handle selection in this special case
-      then pHandleMouse (makeBoxLabelHandler (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
+      then pHandleMouse (makeShapeLabelHandler (_shapeDef_labelImpl boxShapeDef 0) (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
       else Nothing
     MouseDragState_Up -> r where
 
@@ -411,7 +413,7 @@ instance PotatoHandler BoxHandler where
           && (wasNotActuallyDragging || isCreation)
           && wasNotDragSelecting
         -- create box handler and pass on the input (if it was not a text box it will be converted to one by the BoxTextHandler)
-        then pHandleMouse (makeBoxTextHandler isCreation (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
+        then pHandleMouse (makeShapeTextHandler (_shapeDef_textAreaImpl boxShapeDef) isCreation (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
 
         else if isTextArea
           && (wasNotActuallyDragging || isCreation)
