@@ -182,18 +182,22 @@ goatState_hasLocalPreview = owlPFWorkspace_hasLocalPreview . _goatState_workspac
 makeHandlerFromNewTool :: GoatState -> Tool -> SomePotatoHandler
 makeHandlerFromNewTool GoatState{..} = \case
   Tool_Box    -> SomePotatoHandler $ def { _boxHandler_creation = BoxCreationType_Box }
+  -- TODO this should just work, need to update UTs
+  --Tool_Box    -> SomePotatoHandler $ (def { _shapeCreationHandler_shapeType = ShapeType_Box } )
   Tool_Line   -> SomePotatoHandler $ def { _autoLineHandler_isCreation = True }
   Tool_Select -> makeHandlerFromSelection _goatState_canvasSelection
   Tool_Text   -> SomePotatoHandler $ def { _boxHandler_creation = BoxCreationType_Text }
   Tool_TextArea -> SomePotatoHandler $ def { _boxHandler_creation = BoxCreationType_TextArea }
   Tool_Pan           -> SomePotatoHandler $ (def :: PanHandler)
-  Tool_Shape         -> SomePotatoHandler $ (def { _shapeCreationHandler_shapeType = ShapeType_Box } )
+  Tool_Shape         -> SomePotatoHandler $ (def { _shapeCreationHandler_shapeType = ShapeType_Ellipse } )
 
 
 -- TODO rename to makeHandlerFromCanvasSelection
 makeHandlerFromSelection :: CanvasSelection -> SomePotatoHandler
 makeHandlerFromSelection selection = case computeSelectionType selection of
   SMTBox         -> SomePotatoHandler $ (def :: BoxHandler)
+  -- TODO this should just work, need to update UTs
+  --SMTBox         -> SomePotatoHandler $ (def :: ShapeModifyHandler)
   SMTBoxText     -> SomePotatoHandler $ (def :: BoxHandler)
   SMTLine        -> SomePotatoHandler $ (def :: AutoLineHandler)
   SMTTextArea    -> SomePotatoHandler $ (def :: BoxHandler)

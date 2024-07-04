@@ -518,7 +518,7 @@ instance PotatoHandler BoxHandler where
 
 
 -- TODO move this to a more appropriate place
-data ShapeType = ShapeType_Unknown | ShapeType_Box deriving (Show, Eq)
+data ShapeType = ShapeType_Unknown | ShapeType_Box | ShapeType_Ellipse deriving (Show, Eq)
 
 
 
@@ -600,12 +600,14 @@ instance PotatoHandler ShapeCreationHandler where
 
       mdd = makeDragDeltaBox _shapeCreationHandler_handle rmd
 
-      shapeDef = case _shapeCreationHandler_shapeType of
-        ShapeType_Box -> boxShapeDef
+      someShapeDef = case _shapeCreationHandler_shapeType of
+        ShapeType_Box -> SomeShapeDef boxShapeDef
+        ShapeType_Ellipse -> SomeShapeDef ellipseShapeDef
         ShapeType_Unknown -> error "attempting to use ShapeCreationHandler with ShapeType_Unknown"
 
-      mop = Just $ makeAddEltLlama _potatoHandlerInput_pFState newEltPos $ 
-        shapeType_to_owlItem _potatoHandlerInput_potatoDefaultParameters (canonicalLBox_from_lBox $ LBox _mouseDrag_from dragDelta) shapeDef
+      mop = case someShapeDef of
+        SomeShapeDef shapeDef -> Just $ makeAddEltLlama _potatoHandlerInput_pFState newEltPos $ 
+          shapeType_to_owlItem _potatoHandlerInput_potatoDefaultParameters (canonicalLBox_from_lBox $ LBox _mouseDrag_from dragDelta) shapeDef
 
       newbh = bh {
           _shapeCreationHandler_undoFirst = True
@@ -686,6 +688,7 @@ shapeModifyHandlerFromSelection :: CanvasSelection -> ShapeModifyHandler
 shapeModifyHandlerFromSelection cs = r where 
   (shapeType, _) = case superOwl_toSElt_hack <$> selectionToMaybeFirstSuperOwl cs of
     Just (SEltBox sbox) -> (ShapeType_Box, _shapeDef_impl boxShapeDef sbox)
+    Just (SEltEllipse sellipse) -> (ShapeType_Ellipse, _shapeDef_impl ellipseShapeDef sellipse)
     _ -> (ShapeType_Unknown, emptyShapeImpl)
   r = def {
     _shapeModifyHandler_shapeType = shapeType
@@ -701,8 +704,11 @@ instance PotatoHandler ShapeModifyHandler where
   pHandlerName _ = handlerName_shapeModify
   pHandleMouse bh@ShapeModifyHandler {..} phi@PotatoHandlerInput {..} rmd@(RelMouseDrag MouseDrag {..}) = let
       selt = superOwl_toSElt_hack $ selectionToFirstSuperOwl _potatoHandlerInput_canvasSelection
+
+      -- TODO we should combine ShapeImpl with ShapeDef and add type param to ShapeModifyHandler so we don't have to do this weirdness
       (shapeDef, shapeImpl) = case (_shapeModifyHandler_shapeType, selt) of
         (ShapeType_Box, SEltBox sbox) -> (boxShapeDef, _shapeDef_impl boxShapeDef sbox)
+        (ShapeType_Ellipse, SEltEllipse sellipse) -> (boxShapeDef, _shapeDef_impl ellipseShapeDef sellipse)
         (x, y) -> error ("attempting to use ShapeModifyHandler with (" <> show x <> ", " <> show y <> ")")
 
     in case _mouseDrag_state of

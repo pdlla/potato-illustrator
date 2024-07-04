@@ -28,8 +28,8 @@ drawShape (x, y, sx, sy) = do
   canvasMouseUp (x+sx, y+sy)
   let
     f sowl = case _superOwl_elt sowl of
-      OwlItem _ (OwlSubItemBox _) -> Nothing
-      xx                           -> Just ("expected box, got " <> show xx)
+      OwlItem _ (OwlSubItemEllipse _) -> Nothing
+      xx                           -> Just ("expected ellipse, got " <> show xx)
   verifySelectionIsAndOnlyIs "shape is selected" f
 
 basic_test :: Spec

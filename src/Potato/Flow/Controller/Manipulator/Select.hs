@@ -45,6 +45,7 @@ doesOwlSubItemIntersectBox ot rcache lbox sowl = case superOwl_owlSubItem sowl o
       Just (OwlItemCache_Line lar _)  -> lar
       _ -> assert False (sSimpleLineNewRenderFnComputeCache ot sline)
     r = lineAnchorsForRender_doesIntersectBox anchors lbox
+  OwlSubItemEllipse x -> does_lBox_intersect_include_zero_area lbox (_sEllipse_box x)
   _ -> False
 
 

@@ -83,6 +83,7 @@ getSEltBox_naive selt = case selt of
     r = make_lBox_from_XYlist $ (_sAutoLine_start x) : (_sAutoLine_end x) : (_sAutoLine_start x + 1) : (_sAutoLine_end x + 1) : midpoints
 
   SEltTextArea x      -> Just $ canonicalLBox_from_lBox_ $ _sTextArea_box x
+  SEltEllipse x -> Just $ canonicalLBox_from_lBox_ $ _sEllipse_box x
 
 getSEltLabelBox :: SEltLabel -> Maybe LBox
 getSEltLabelBox (SEltLabel _ x) = getSEltBox_naive x

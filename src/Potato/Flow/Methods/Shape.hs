@@ -19,7 +19,9 @@ import Data.Default
 import qualified Text.Show
 
 
--- TODO probably just combine this with ShapeImpl and make ShapeModifyHandler take an `o` parameter
+data SomeShapeDef = forall o. () => SomeShapeDef (ShapeDef o)
+
+-- TODO probably just combine this with ShapeImpl
 data ShapeDef o = ShapeDef {
   _shapeDef_name :: Text
   , _shapeDef_create :: PotatoDefaultParameters -> LBox -> OwlItem
@@ -28,11 +30,6 @@ data ShapeDef o = ShapeDef {
   , _shapeDef_labelImpl :: Int -> TextImpl o
   , _shapeDef_textImpl :: TextImpl o
 }
-
-
-
-
-
 
 data ShapeImpl = ShapeImpl {
   _shapeImpl_updateFromLBox :: REltId -> LBox -> Llama

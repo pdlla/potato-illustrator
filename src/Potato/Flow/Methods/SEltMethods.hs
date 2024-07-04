@@ -58,6 +58,8 @@ doesSEltIntersectBox_DEPRECATED lbox selt = case selt of
   SEltFolderEnd                -> False
   SEltBox x                    -> does_lBox_intersect_include_zero_area lbox (_sBox_box x)
   SEltTextArea x                   -> does_lBox_intersect_include_zero_area lbox (_sTextArea_box x)
+  -- TODO you could use the isInEllipse function here instead
+  SEltEllipse x                -> does_lBox_intersect_include_zero_area lbox (_sEllipse_box x)
   -- TODO this is wrong, do it correctly...
   -- we use does_lBox_intersect since it's impossible for a SAutoLine to have zero sized box
   SEltLine sline -> does_lBox_intersect lbox (fromJust $ getSEltBox_naive (SEltLine sline))
@@ -207,9 +209,18 @@ sEllipse_drawer sellipse = SEltDrawer {
   , _sEltDrawer_maxCharWidth = 1
 }
 
--- TODO proper rendering
+isInEllipse :: LBox -> XY -> Bool
+isInEllipse (LBox (V2 x y) (V2 w h)) (V2 px py) = isInEllipse (px, py)
+  where
+    (width, height) = (w, h)
+    centerX = x + w `div` 2
+    centerY = y + h `div` 2
+    a = fromIntegral w / 2
+    b = fromIntegral h / 2
+    isInEllipse (i, j) = ((fromIntegral (i - centerX) / a) ^ 2 + (fromIntegral (j - centerY) / b) ^ 2) <= 1
+
 sEllipse_renderFn :: forall a. (HasOwlTree a) => SEllipse -> a -> XY -> Maybe PChar
-sEllipse_renderFn sellipse ot (V2 x y) = if does_lBox_contains_XY (_sEllipse_box sellipse) (V2 x y)
+sEllipse_renderFn sellipse ot (V2 x y) = if isInEllipse (_sEllipse_box sellipse) (V2 x y)
   then Just '#'
   else Nothing
 
@@ -282,6 +293,9 @@ modify_sElt_with_cBoundingBox isDo selt cbb@CBoundingBox {..} = case selt of
     }
   SEltTextArea stext -> SEltTextArea $ stext {
       _sTextArea_box     = modifyDelta isDo (_sTextArea_box stext) _cBoundingBox_deltaBox
+    }
+  SEltEllipse sellipse -> SEltEllipse $ sellipse {
+      _sEllipse_box = modifyDelta isDo (_sEllipse_box sellipse) _cBoundingBox_deltaBox
     }
   x          -> x
 
