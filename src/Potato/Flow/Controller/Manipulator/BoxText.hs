@@ -1,8 +1,8 @@
+-- TODO Rename to ShapeText.hs
+
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -fno-warn-unused-record-wildcards #-}
 
-
--- TODO probably move this to Manipulator.Box.Text
 module Potato.Flow.Controller.Manipulator.BoxText (
   TextInputState(..)
   , lBox_to_boxLabelBox

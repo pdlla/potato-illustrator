@@ -41,6 +41,7 @@ data ShapeImpl = ShapeImpl {
   , _shapeImpl_textArea :: Maybe CanonicalLBox
   -- TODO rename to _shapeImpl_textLabels
   , _shapeImpl_textLabel :: [CanonicalLBox]
+  -- TODO DELETE
   , _shapeImpl_setTextLabel :: Int -> Text -> Llama
   , _shapeImpl_startingAttachments :: [AvailableAttachment]
   --TODO this should take a OwlItemCache?

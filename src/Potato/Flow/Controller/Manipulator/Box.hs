@@ -589,7 +589,7 @@ instance Default ShapeCreationHandler where
 
 instance PotatoHandler ShapeCreationHandler where
   pHandlerName _ = handlerName_shape
-  pHandleMouse bh@ShapeCreationHandler {..} phi@PotatoHandlerInput {..} rmd@(RelMouseDrag MouseDrag {..}) = case _mouseDrag_state of
+  pHandleMouse bh@ShapeCreationHandler {..} PotatoHandlerInput {..} rmd@(RelMouseDrag MouseDrag {..}) = case _mouseDrag_state of
 
     MouseDragState_Down ->  Just $ def {
         _potatoHandlerOutput_nextHandler = Just $ SomePotatoHandler bh { _shapeCreationHandler_active = True }
@@ -689,7 +689,7 @@ instance Default ShapeModifyHandler where
 
 shapeModifyHandlerFromSelection :: CanvasSelection -> ShapeModifyHandler
 shapeModifyHandlerFromSelection cs = r where 
-  (shapeType, impl) = case superOwl_toSElt_hack <$> selectionToMaybeFirstSuperOwl cs of
+  (shapeType, _) = case superOwl_toSElt_hack <$> selectionToMaybeFirstSuperOwl cs of
     Just (SEltBox sbox) -> (ShapeType_Box, _shapeDef_impl boxShapeDef sbox)
     _ -> (ShapeType_Unknown, emptyShapeImpl)
   r = def {
@@ -742,9 +742,6 @@ instance PotatoHandler ShapeModifyHandler where
             else Nothing
 
       MouseDragState_Dragging -> Just r where
-        dragDelta = _mouseDrag_to - _mouseDrag_from
-        newEltPos = lastPositionInSelection (_owlPFState_owlTree _potatoHandlerInput_pFState) _potatoHandlerInput_selection
-
         -- TODO do I use this for box creation? Prob want to restrictDiag or something though
         --shiftClick = elem KeyModifier_Shift _mouseDrag_modifiers
         --boxRestrictedDelta = if shiftClick then restrict8 dragDelta else dragDelta
@@ -773,22 +770,20 @@ instance PotatoHandler ShapeModifyHandler where
         -- clicked on the text label area
         then case _shapeModifyHandler_downOnLabel of
           Just i -> pHandleMouse (makeShapeLabelHandler (_shapeDef_labelImpl shapeDef i) (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
+          Nothing -> error "impossible"
         else Nothing
 
       MouseDragState_Up -> r where
 
         -- TODO do selectMagic here so we can enter text edit modes from multi-selections (you will also need to modify the selection)
         nselected = Seq.length (unCanvasSelection _potatoHandlerInput_canvasSelection)
-        selt = superOwl_toSElt_hack <$> selectionToMaybeFirstSuperOwl _potatoHandlerInput_canvasSelection
-        isBox = nselected == 1 && case selt of
+        mselt = superOwl_toSElt_hack <$> selectionToMaybeFirstSuperOwl _potatoHandlerInput_canvasSelection
+        isBox = nselected == 1 && case mselt of
           Just (SEltBox _) -> True
           _                                    -> False
-        isText = nselected == 1 && case selt of
+        isText = nselected == 1 && case mselt of
           Just (SEltBox SBox{..}) -> sBoxType_isText _sBox_boxType
           _                                    -> False
-        isTextArea = nselected == 1 && case selt of
-          Just (SEltTextArea _) -> True
-          _ -> False
 
 
         -- only enter sub handler if we weren't drag selecting (this includes selecting it from an unselect state without dragging)
