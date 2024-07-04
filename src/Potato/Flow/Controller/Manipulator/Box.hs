@@ -413,7 +413,7 @@ instance PotatoHandler BoxHandler where
           && (wasNotActuallyDragging || isCreation)
           && wasNotDragSelecting
         -- create box handler and pass on the input (if it was not a text box it will be converted to one by the BoxTextHandler)
-        then pHandleMouse (makeShapeTextHandler (_shapeDef_textAreaImpl boxShapeDef) isCreation (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
+        then pHandleMouse (makeShapeTextHandler (_shapeDef_textImpl boxShapeDef) isCreation (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
 
         else if isTextArea
           && (wasNotActuallyDragging || isCreation)
@@ -538,7 +538,7 @@ boxShapeDef = ShapeDef {
       , _shapeImpl_textArea = if sBoxType_isText (_sBox_boxType sbox) 
         then Just (getSBoxTextBox sbox)
         else Nothing 
-      , _shapeImpl_textLabel = if sBoxType_hasBorder (_sBox_boxType sbox) 
+      , _shapeImpl_textLabels = if sBoxType_hasBorder (_sBox_boxType sbox) 
         then [canonicalLBox_from_lBox (lBox_to_boxLabelBox (_sBox_box sbox))]
         else []
       , _shapeImpl_startingAttachments = if sBoxType_hasBorder (_sBox_boxType sbox)
@@ -547,7 +547,7 @@ boxShapeDef = ShapeDef {
       , _shapeImpl_draw = sBox_drawer sbox
     }
     , _shapeDef_labelImpl = \i -> assert (i == 0) boxLabelImpl
-    , _shapeDef_textAreaImpl = boxTextImpl
+    , _shapeDef_textImpl = boxTextImpl
   }
 
 shapeType_to_owlItem :: PotatoDefaultParameters -> CanonicalLBox -> ShapeDef o -> OwlItem
@@ -694,7 +694,7 @@ shapeModifyHandlerFromSelection cs = r where
 
 findWhichTextLabelMouseIsOver :: ShapeImpl -> ShapeModifyHandler -> RelMouseDrag -> Maybe Int
 findWhichTextLabelMouseIsOver shapeImpl ShapeModifyHandler {..} (RelMouseDrag MouseDrag {..}) = 
-  L.findIndex (\lbox -> does_lBox_contains_XY (lBox_from_canonicalLBox lbox) _mouseDrag_from) $ _shapeImpl_textLabel shapeImpl
+  L.findIndex (\lbox -> does_lBox_contains_XY (lBox_from_canonicalLBox lbox) _mouseDrag_from) $ _shapeImpl_textLabels shapeImpl
 
 
 instance PotatoHandler ShapeModifyHandler where
@@ -791,7 +791,7 @@ instance PotatoHandler ShapeModifyHandler where
 
           -- TODO make BoxTextHandler generic to shapes
           -- create box handler and pass on the input (if it was not a text box it will be converted to one by the BoxTextHandler)
-          then pHandleMouse (makeShapeTextHandler (_shapeDef_textAreaImpl shapeDef) False (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
+          then pHandleMouse (makeShapeTextHandler (_shapeDef_textImpl shapeDef) False (SomePotatoHandler (def :: BoxHandler)) _potatoHandlerInput_canvasSelection rmd) phi rmd
           -- This clears the handler and causes selection to regenerate a new handler.
           -- Why do we do it this way instead of returning a handler? Not sure, doesn't matter.
           else Just def {

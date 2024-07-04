@@ -26,8 +26,7 @@ data ShapeDef o = ShapeDef {
   , _shapeDef_impl :: o -> ShapeImpl
   -- NOTE these are separate from _shapeDef_impl as I didn't want to rewrite TextImpl to pull out the `o` 
   , _shapeDef_labelImpl :: Int -> TextImpl o
-  -- TODO rename to textImpl (to avoid confusion with TextArea tool)
-  , _shapeDef_textAreaImpl :: TextImpl o
+  , _shapeDef_textImpl :: TextImpl o
 }
 
 
@@ -40,7 +39,7 @@ data ShapeImpl = ShapeImpl {
   , _shapeImpl_toLBox :: LBox
   , _shapeImpl_textArea :: Maybe CanonicalLBox
   -- TODO rename to _shapeImpl_textLabels
-  , _shapeImpl_textLabel :: [CanonicalLBox]
+  , _shapeImpl_textLabels :: [CanonicalLBox]
   , _shapeImpl_startingAttachments :: [AvailableAttachment]
   --TODO this should take a OwlItemCache?
   , _shapeImpl_draw :: SEltDrawer
@@ -55,7 +54,7 @@ emptyShapeDef = ShapeDef {
   , _shapeDef_create = \_ _ -> error "emptyShapeDef"
   , _shapeDef_impl = \_ -> emptyShapeImpl
   , _shapeDef_labelImpl = \_ -> error "emptyShapeDef"
-  , _shapeDef_textAreaImpl = error "emptyShapeDef"
+  , _shapeDef_textImpl = error "emptyShapeDef"
 }
 
 emptyShapeImpl :: ShapeImpl
@@ -63,7 +62,7 @@ emptyShapeImpl = ShapeImpl {
   _shapeImpl_updateFromLBox = error "emptyShapeImpl"
   , _shapeImpl_toLBox = LBox 0 0
   , _shapeImpl_textArea = Nothing
-  , _shapeImpl_textLabel = []
+  , _shapeImpl_textLabels = []
   , _shapeImpl_startingAttachments = []
   , _shapeImpl_draw = error "emptyShapeImpl"
 }
@@ -88,7 +87,7 @@ makeEllipseShapeImpl sellipse = ShapeImpl {
       newh = floor (0.7 * fromIntegral h)
     in
       Just $ canonicalLBox_from_lBox $ LBox (V2 (x + (w - neww) `div` 2) (y + (h - newh) `div` 2)) (V2 neww newh)
-  , _shapeImpl_textLabel = []
+  , _shapeImpl_textLabels = []
   , _shapeImpl_startingAttachments = []
   , _shapeImpl_draw = sEllipse_drawer sellipse
 }
