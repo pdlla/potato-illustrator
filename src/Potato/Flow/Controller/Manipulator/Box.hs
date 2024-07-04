@@ -541,11 +541,6 @@ boxShapeDef = ShapeDef {
       , _shapeImpl_textLabel = if sBoxType_hasBorder (_sBox_boxType sbox) 
         then [canonicalLBox_from_lBox (lBox_to_boxLabelBox (_sBox_box sbox))]
         else []
-
-        -- TODO
-      , _shapeImpl_setTextLabel = undefined
-
-
       , _shapeImpl_startingAttachments = if sBoxType_hasBorder (_sBox_boxType sbox)
         then []
         else availableAttachLocationsFromLBox True (_sBox_box sbox)

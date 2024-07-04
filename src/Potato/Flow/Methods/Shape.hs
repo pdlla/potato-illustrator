@@ -41,8 +41,6 @@ data ShapeImpl = ShapeImpl {
   , _shapeImpl_textArea :: Maybe CanonicalLBox
   -- TODO rename to _shapeImpl_textLabels
   , _shapeImpl_textLabel :: [CanonicalLBox]
-  -- TODO DELETE
-  , _shapeImpl_setTextLabel :: Int -> Text -> Llama
   , _shapeImpl_startingAttachments :: [AvailableAttachment]
   --TODO this should take a OwlItemCache?
   , _shapeImpl_draw :: SEltDrawer
@@ -66,7 +64,6 @@ emptyShapeImpl = ShapeImpl {
   , _shapeImpl_toLBox = LBox 0 0
   , _shapeImpl_textArea = Nothing
   , _shapeImpl_textLabel = []
-  , _shapeImpl_setTextLabel = error "emptyShapeImpl"
   , _shapeImpl_startingAttachments = []
   , _shapeImpl_draw = error "emptyShapeImpl"
 }
@@ -92,7 +89,6 @@ makeEllipseShapeImpl sellipse = ShapeImpl {
     in
       Just $ canonicalLBox_from_lBox $ LBox (V2 (x + (w - neww) `div` 2) (y + (h - newh) `div` 2)) (V2 neww newh)
   , _shapeImpl_textLabel = []
-  , _shapeImpl_setTextLabel = \_ _ -> error "Ellipse does not support text labels"
   , _shapeImpl_startingAttachments = []
   , _shapeImpl_draw = sEllipse_drawer sellipse
 }
