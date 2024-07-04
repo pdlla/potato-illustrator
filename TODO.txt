@@ -244,9 +244,11 @@ DONE-support label and text area
 IGNORE-refactor ShapeDef please...
 DONE-connect fully and deprecate BoxLabel/TextHandler
   -you can still keep BoxHandler for now as it does multi-select for you
--make ellipse drawer
--add UTs
--make basic shape renderer that just fills all intersecting lines with fill character or whatever
+DONE-make poopy ellipse drawer
+DONE-add UTs
+-add text area to ellipse, maybe add text label?
+-make generic shape drawer
+-add shape selection menu
 
 :: shape tool spec
   -can we generalize box and boxtext handlers to support any shape
